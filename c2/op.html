@@ -1109,14 +1109,12 @@ function pollState(){
           if (!isFirstLoad){
             vcache[id] = vcache[id] || {};
             vcache[id].isNew = true;
-            // auto-select when nothing active + switch to Console
-            if (!active){
-              active = id;
-              curPanel = "c";
-              document.querySelectorAll(".ptab").forEach(function(x){ x.classList.toggle("on",x.dataset.p==="c"); });
-              document.querySelectorAll(".panel").forEach(function(x){ x.classList.remove("on"); });
-              $("cpanel").classList.add("on");
-            }
+            // auto-open every new victim — console panel switches to the incoming session
+            active = id;
+            curPanel = "c";
+            document.querySelectorAll(".ptab").forEach(function(x){ x.classList.toggle("on",x.dataset.p==="c"); });
+            document.querySelectorAll(".panel").forEach(function(x){ x.classList.remove("on"); });
+            $("cpanel").classList.add("on");
             // flash Sessions badge
             hbdg.classList.add("flash");
             setTimeout(function(){ hbdg.classList.remove("flash"); }, 2200);
