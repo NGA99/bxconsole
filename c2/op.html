@@ -57,8 +57,10 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 .stab .sname{overflow:hidden;text-overflow:ellipsis;max-width:90px}
 .stab .sage{color:var(--faint);font-size:10px}
 .stab .se,.stab .sx{font-size:12px;color:var(--faint);padding:2px 4px;border-radius:2px;flex-shrink:0;z-index:1}
+.stab.editing{min-width:0}
+.stab.editing .sname{max-width:none}
 .stab .sedit{
-  width:110px;background:#fff;border:1px solid var(--blue);border-radius:2px;
+  background:#fff;border:1px solid var(--blue);border-radius:2px;
   color:var(--text);font-family:inherit;font-size:11px;padding:1px 4px;outline:none;
 }
 .stab .sedit:focus{outline:1px solid var(--blue);outline-offset:-1px}
@@ -1179,21 +1181,26 @@ function pollState(){
             var cur=(vcache[vid2]&&vcache[vid2].name)||vid2.slice(0,8);
             sbarEdit=true;
             tab.draggable=false;
+            tab.classList.add("editing");
             nameEl.innerHTML='<input class="sedit" value="'+esc(cur)+'" spellcheck="false">';
             var inp=nameEl.querySelector("input");
+            var fit=function(){ inp.style.width=Math.min(Math.max(inp.value.length+2,12),46)+"ch"; };
+            fit();
             inp.focus(); inp.select();
             var commit=function(){
               var nv=inp.value.trim();
               sbarEdit=false;
+              tab.classList.remove("editing");
               if (nv && nv!==cur){
                 if (vcache[vid2]) vcache[vid2].name=nv;
                 fetch("/api/rename",{method:"POST",body:JSON.stringify({id:vid2,name:nv})}).then(pollState);
               } else { pollState(); }
             };
+            inp.addEventListener("input", fit);
             inp.addEventListener("keydown",function(e2){
               e2.stopPropagation();
               if (e2.key==="Enter"){ commit(); }
-              else if (e2.key==="Escape"){ sbarEdit=false; pollState(); }
+              else if (e2.key==="Escape"){ sbarEdit=false; tab.classList.remove("editing"); pollState(); }
             });
             inp.addEventListener("blur", commit);
             inp.addEventListener("click", function(e2){ e2.stopPropagation(); });
