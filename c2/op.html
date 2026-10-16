@@ -57,6 +57,11 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 .stab .sname{overflow:hidden;text-overflow:ellipsis;max-width:90px}
 .stab .sage{color:var(--faint);font-size:10px}
 .stab .se,.stab .sx{font-size:12px;color:var(--faint);padding:2px 4px;border-radius:2px;flex-shrink:0;z-index:1}
+.stab .sedit{
+  width:110px;background:#fff;border:1px solid var(--blue);border-radius:2px;
+  color:var(--text);font-family:inherit;font-size:11px;padding:1px 4px;outline:none;
+}
+.stab .sedit:focus{outline:1px solid var(--blue);outline-offset:-1px}
 .stab .se:hover{background:#fbbc04;color:#000}
 .stab .sx:hover{background:var(--red2);color:#fff}
 #sbar-empty{padding:0 14px;color:var(--faint);font-size:11px;align-self:center;flex-shrink:0}
@@ -305,13 +310,6 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 /* Flash Sessions badge when a new victim connects */
 @keyframes bdgFlash{0%,100%{opacity:1}50%{opacity:.3}}
 .bdg.flash{animation:bdgFlash .5s ease 4}
-
-/* ══════════════════════════════════════
-   Session tab tooltip (1.5s hover)
-══════════════════════════════════════ */
-#tabtip{position:fixed;z-index:200;display:none;background:#2b2b2b;color:#fff;
-  padding:6px 10px;border-radius:4px;font-size:11px;line-height:1.5;
-  box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;max-width:380px;word-break:break-all}
 
 /* ══════════════════════════════════════
    Autocomplete dropdown + ghost text
@@ -647,6 +645,7 @@ var seenVids = new Set();
 var suppressedVids = new Set();
 var hiddenTabs = new Set();   // sessions hidden via tab ✕ — alive on server, hidden in UI only
 var sbarOrder = [];           // victim tab drag order (localStorage persisted)
+var sbarEdit = false;         // inline rename in progress — suspend tab re-render
 try { sbarOrder = JSON.parse(localStorage.bx_sbar_order || "[]"); } catch(e) { sbarOrder = []; }
 var stateTrash = {};          // /api/state trash — restorable
 var initialLoadDone = false;
@@ -730,40 +729,7 @@ bindDrag($("sbar"), ".stab", function(){
   localStorage.bx_sbar_order = JSON.stringify(sbarOrder);
 });
 
-// session tab hover tooltip — 1.5초 이상 호버 시 잘린 이름 전체 표시
-var tabtipEl = document.createElement("div");
-tabtipEl.id = "tabtip"; document.body.appendChild(tabtipEl);
-var tipTimer = null, tipVid = null;
-function hideTabTip(){ clearTimeout(tipTimer); tipVid = null; tabtipEl.style.display = "none"; }
-function showTabTip(t){
-  var vid = t.dataset.id; if (!vid) return;
-  var v = vcache[vid] || {};
-  var nm = v.name || vid;
-  var age = secs(v.last || "");
-  tabtipEl.innerHTML = '<div style="font-weight:600">'+esc(nm)+'</div>'
-    +'<div style="opacity:.55;font-size:9px;margin-top:2px">'+esc(vid)
-    +' · last beacon '+(isFinite(age)?age+"s":"-")+' ago</div>'
-    +'<div style="opacity:.55;font-size:9px;margin-top:2px">✎ rename · ✕ hide tab</div>';
-  tabtipEl.style.display = "block";
-  var r = t.getBoundingClientRect();
-  tabtipEl.style.left = Math.max(8, Math.min(r.left, window.innerWidth-390)) + "px";
-  tabtipEl.style.top  = (r.bottom + 6) + "px";
-}
-sbar.addEventListener("mouseover", function(e){
-  var t = e.target.closest(".stab");
-  if (!t){ hideTabTip(); return; }
-  if (tipVid === t.dataset.id) return;     // 같은 탭 내부 이동 — 타이머 유지
-  tipVid = t.dataset.id;
-  clearTimeout(tipTimer);
-  tabtipTimer = setTimeout(function(){ showTabTip(t); }, 1500);
-});
-sbar.addEventListener("mouseout", function(e){
-  var from = e.target.closest(".stab");
-  var to = e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest(".stab") : null;
-  if (from && to === from) return;         // 같은 탭 내부 이동 — 유지
-  hideTabTip();
-});
-sbar.addEventListener("mouseleave", hideTabTip);
+
 
 /* ═══════════ Utils ═══════════ */
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -1174,7 +1140,7 @@ function pollState(){
           if (ib<0) return -1;
           return ia-ib;
         });
-        if (!dragEl){
+        if (!dragEl && !sbarEdit){
           sbar.innerHTML=tabList.map(function(id){
           var isClosed=!vics[id]&&vcache[id]&&vcache[id].closed;
           if (isClosed){
@@ -1205,12 +1171,32 @@ function pollState(){
             return;
           }
           if (ev.target.dataset.e){
+            // inline rename — edit the title directly inside the session tab
             var vid2=ev.target.dataset.e;
-            var nm2=prompt("Rename",nameOf(d,vid2));
-            if (nm2&&nm2.trim()){
-              if (vcache[vid2]) vcache[vid2].name=nm2.trim();
-              fetch("/api/rename",{method:"POST",body:JSON.stringify({id:vid2,name:nm2.trim()})}).then(pollState);
-            }
+            var tab=ev.target.closest(".stab");
+            var nameEl=tab && tab.querySelector(".sname");
+            if (!nameEl || nameEl.querySelector("input")) return;
+            var cur=(vcache[vid2]&&vcache[vid2].name)||vid2.slice(0,8);
+            sbarEdit=true;
+            tab.draggable=false;
+            nameEl.innerHTML='<input class="sedit" value="'+esc(cur)+'" spellcheck="false">';
+            var inp=nameEl.querySelector("input");
+            inp.focus(); inp.select();
+            var commit=function(){
+              var nv=inp.value.trim();
+              sbarEdit=false;
+              if (nv && nv!==cur){
+                if (vcache[vid2]) vcache[vid2].name=nv;
+                fetch("/api/rename",{method:"POST",body:JSON.stringify({id:vid2,name:nv})}).then(pollState);
+              } else { pollState(); }
+            };
+            inp.addEventListener("keydown",function(e2){
+              e2.stopPropagation();
+              if (e2.key==="Enter"){ commit(); }
+              else if (e2.key==="Escape"){ sbarEdit=false; pollState(); }
+            });
+            inp.addEventListener("blur", commit);
+            inp.addEventListener("click", function(e2){ e2.stopPropagation(); });
             return;
           }
           var t=ev.target.closest(".stab");
