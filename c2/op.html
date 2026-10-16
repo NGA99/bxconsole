@@ -1187,11 +1187,9 @@ function pollState(){
           }
           var v=vics[id], sseCnt=sse[id]||0;
           var dc="dot "+sessDot(false, v.last, sseCnt);
-          var age=secs(v.last), agStr=age<=99?age+"s":">99s";
           return '<div class="stab'+(id===active?" on":"")+'" data-id="'+id+'" draggable="true">'
             +'<span class="'+dc+'"></span>'
             +'<span class="sname">'+esc(nameOf(d,id))+'</span>'
-            +'<span class="sage">'+agStr+'</span>'
             +'<span class="se" data-e="'+id+'">✎</span>'
             +'<span class="sx" data-x="'+id+'">✕</span>'
             +'</div>';
