@@ -277,7 +277,7 @@
         });
         // 자동 바디 캡처 — 동일 출처 리소스를 force-cache로 재요청 (fetch 훅이 응답 캡처)
         try {
-          if (!_refetched[e.name] && _refetchN < 20 && !(e.transferSize > 300000)) {
+          if (!_refetched[e.name] && _refetchN < 60 && !(e.transferSize > 1000000)) {
             var u2 = new URL(e.name, location.href);
             if (u2.origin === location.origin) {
               _refetched[e.name] = 1; _refetchN++;

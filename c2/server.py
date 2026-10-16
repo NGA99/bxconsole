@@ -533,6 +533,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 del LOG[:-200]
             # v0.3: 네트워크 캡처 (요청 바디·헤더·content-type·size·실패·WS/SSE/리소스)
             if tag == "net":
+                # anchor 모드에서 top+iframe이 같은 리소스를 중복 관찰하는 노이즈 제거
+                if d.get("ro") and d.get("url"):
+                    _dupe = False
+                    for _r in reversed(NET.get(vid, [])[-8:]):
+                        if _r.get("ro") and _r.get("url") == d.get("url"):
+                            _dupe = True; break
+                    if _dupe:
+                        self._send(200, "text/plain", b"ok"); return
                 _nrow = {"method": d.get("method","GET"), "url": d.get("url",""),
                          "status": d.get("status",0),
                          "body": str(d.get("body",""))[:8000],
