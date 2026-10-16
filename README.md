@@ -83,7 +83,7 @@ sessions/
 - **요구사항**: Python 3.8+ — **표준 라이브러리만 사용**(외부 패키지 없음). html2canvas는 피해자 브라우저가 CDN에서 로드
 - **클론**: `git clone https://github.com/NGA99/bxconsole.git` (비공개 리포지토리는 deploy key 또는 PAT)
 - **기동**: `python3 c2/server.py` — 이미 `0.0.0.0` 바인딩이라 LAN/공개 인터페이스 즉시 수신
-- **C2 주소 자동 적응**: `/bx.js`는 요청의 Host 헤더로 자기 주소를 치환 — 피해자가 도달한 주소가 곧 페이로드 주소
+- **C2 주소 자동 적응**: `/bx.js`는 요청의 Host 헤더 + 스킴(TLS 또는 `X-Forwarded-Proto`)을 감지해 자기 주소를 치환 — 피해자가 도달한 주소/프로토콜이 곧 페이로드 주소. https 페이지에서 http 비컨 mixed content 차단 방지
 - **systemd 예제**:
   ```ini
   [Service]
