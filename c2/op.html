@@ -426,12 +426,12 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 
 <!-- DevTools panel tabs -->
 <div id="ptabs">
-  <div class="ptab on" data-p="c">Console<span class="bdg red" id="ebdg">0</span></div>
-  <div class="ptab"   data-p="n">Network<span class="bdg"     id="nbdg">0</span></div>
-  <div class="ptab"   data-p="h">Sessions<span class="bdg"    id="hbdg"></span></div>
-  <div class="ptab"   data-p="pl">Payloads</div>
-  <div class="ptab"   data-p="pb">Probe<span class="bdg" id="pbbdg">0</span></div>
-  <div class="ptab"   data-p="s">Settings</div>
+  <div class="ptab on" data-p="c" draggable="true">Console<span class="bdg red" id="ebdg">0</span></div>
+  <div class="ptab"   data-p="n" draggable="true">Network<span class="bdg"     id="nbdg">0</span></div>
+  <div class="ptab"   data-p="h" draggable="true">Sessions<span class="bdg"    id="hbdg"></span></div>
+  <div class="ptab"   data-p="pl" draggable="true">Payloads</div>
+  <div class="ptab"   data-p="pb" draggable="true">Probe<span class="bdg" id="pbbdg">0</span></div>
+  <div class="ptab"   data-p="s" draggable="true">Settings</div>
   <div id="pright">
     <span class="pill" id="connpill">—</span>
     <span class="pill" id="urlpill" title="">—</span>
@@ -639,6 +639,8 @@ var lastSSE  = {};   // id → SSE count (latest poll)
 var seenVids = new Set();
 var suppressedVids = new Set();
 var hiddenTabs = new Set();   // sessions hidden via tab ✕ — alive on server, hidden in UI only
+var sbarOrder = [];           // victim tab drag order (localStorage persisted)
+try { sbarOrder = JSON.parse(localStorage.bx_sbar_order || "[]"); } catch(e) { sbarOrder = []; }
 var stateTrash = {};          // /api/state trash — restorable
 var initialLoadDone = false;
 
@@ -670,6 +672,55 @@ $("ptabs").addEventListener("click", function(e){
   if (p==="s") loadSettings();
   if (p==="pl") renderPayloads();
   if (p==="pb") loadProbes();
+});
+
+/* ═══════════ Tab drag & reorder — localStorage 위치 고정 ═══════════ */
+var tabOrder = (localStorage.bx_tab_order || "").split(",").filter(Boolean);
+var dragEl = null;
+function applyTabOrder(){
+  if (!tabOrder.length) return;
+  var pr = $("pright");
+  tabOrder.forEach(function(p){
+    var t = $("ptabs").querySelector('.ptab[data-p="'+p+'"]');
+    if (t) $("ptabs").insertBefore(t, pr);
+  });
+}
+function bindDrag(root, itemSel, onOrder){
+  root.addEventListener("dragstart", function(e){
+    var t = e.target.closest(itemSel); if (!t) return;
+    dragEl = t; t.style.opacity = "0.4";
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", ""); } catch(err) {}
+  });
+  root.addEventListener("dragend", function(){
+    if (dragEl) dragEl.style.opacity = "";
+    dragEl = null;
+  });
+  root.addEventListener("dragover", function(e){
+    if (!dragEl) return;
+    e.preventDefault();
+    var over = e.target.closest(itemSel);
+    if (over && over !== dragEl && over.parentElement === dragEl.parentElement){
+      var rect = over.getBoundingClientRect();
+      var before = (e.clientX - rect.left) < rect.width/2;
+      root.insertBefore(dragEl, before ? over : over.nextSibling);
+    }
+  });
+  root.addEventListener("drop", function(e){
+    e.preventDefault();
+    if (dragEl) onOrder();
+  });
+}
+applyTabOrder();
+bindDrag($("ptabs"), ".ptab", function(){
+  tabOrder = Array.prototype.map.call($("ptabs").querySelectorAll(".ptab"),
+    function(x){ return x.dataset.p; });
+  localStorage.bx_tab_order = tabOrder.join(",");
+});
+bindDrag($("sbar"), ".stab", function(){
+  sbarOrder = Array.prototype.map.call($("sbar").querySelectorAll(".stab"),
+    function(x){ return x.dataset.id || ""; });
+  localStorage.bx_sbar_order = JSON.stringify(sbarOrder);
 });
 
 /* ═══════════ Utils ═══════════ */
@@ -1069,11 +1120,20 @@ function pollState(){
         if (!active||(!vics[active]&&!viewingClosed)) active=sorted[0];
         var tabList=sorted.slice();
         if (viewingClosed&&tabList.indexOf(active)<0) tabList.push(active);
-        sbar.innerHTML=tabList.map(function(id){
+        // saved drag order — 사용자가 배치한 순서 우선, 신규 세션은 뒤에 추가
+        tabList.sort(function(a,b){
+          var ia=sbarOrder.indexOf(a), ib=sbarOrder.indexOf(b);
+          if (ia<0&&ib<0) return 0;
+          if (ia<0) return 1;
+          if (ib<0) return -1;
+          return ia-ib;
+        });
+        if (!dragEl){
+          sbar.innerHTML=tabList.map(function(id){
           var isClosed=!vics[id]&&vcache[id]&&vcache[id].closed;
           if (isClosed){
             var vn=vcache[id];
-            return '<div class="stab'+(id===active?" on":"")+'" data-id="'+id+'">'
+            return '<div class="stab'+(id===active?" on":"")+'" data-id="'+id+'" draggable="true">'
               +'<span class="dot dead"></span>'
               +'<span class="sname" title="'+esc(id)+'">'+esc(vn.name||id.slice(0,8))+'</span>'
               +'<span class="sage">Closed</span>'
@@ -1082,7 +1142,7 @@ function pollState(){
           var v=vics[id], sseCnt=sse[id]||0;
           var on=sseCnt>0||secs(v.last)<=35;
           var dc="dot "+sessDot(false, v.last, sseCnt);
-          return '<div class="stab'+(id===active?" on":"")+'" data-id="'+id+'">'
+          return '<div class="stab'+(id===active?" on":"")+'" data-id="'+id+'" draggable="true">'
             +'<span class="'+dc+'" title="last beacon '+secs(v.last)+'s ago"></span>'
             +'<span class="sname" title="'+esc(id)+'">'+esc(nameOf(d,id))+'</span>'
             +'<span class="sage">'+(on?secs(v.last)+"s":"×")+'</span>'
@@ -1112,6 +1172,7 @@ function pollState(){
           var t=ev.target.closest(".stab");
           if (t&&t.dataset.id){ active=t.dataset.id; pollState(); }
         };
+        } // end if (!dragEl)
       }
 
       // meta pills + input bar state
