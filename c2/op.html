@@ -1,7 +1,7 @@
 <!doctype html>
 <html><head>
 <meta charset="utf-8">
-<title>BXShell — DevTools</title>
+<title>BXConsole — DevTools</title>
 <style>
 /* ── Chrome DevTools Light Theme ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -941,7 +941,7 @@ function renderNet(){
 /* HAR 1.2 export — 캡처 데이터를 표준 포맷으로 다운로드 */
 function exportHAR(){
   var iso=new Date().toISOString().slice(0,11);
-  var har={log:{version:"1.2",creator:{name:"BXShell",version:"0.3"},
+  var har={log:{version:"1.2",creator:{name:"BXConsole",version:"0.3"},
     entries:netRows.map(function(r){
       return {
         startedDateTime:iso+(r.t||"00:00:00")+"Z", time:r.ms||0,
@@ -957,7 +957,7 @@ function exportHAR(){
   var blob=new Blob([JSON.stringify(har,null,1)],{type:"application/json"});
   var a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
-  a.download="bxshell_net_"+(active||"session")+".har";
+  a.download="bxconsole_net_"+(active||"session")+".har";
   a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); },1000);
 }
@@ -1533,8 +1533,8 @@ var AC_SNIP = [
   {v:"btoa(",d:"Base64 encode"},
   {v:"atob(",d:"Base64 decode"},
   {v:"performance.now()",d:"timestamp"},
-  {v:"window.__bx",d:"bxshell context"},
-  {v:"window.__bx.vars",d:"bxshell variable store"},
+  {v:"window.__bx",d:"bxconsole context"},
+  {v:"window.__bx.vars",d:"bxconsole variable store"},
 ];
 
 // static object property map

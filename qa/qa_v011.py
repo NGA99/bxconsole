@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BXShell v0.1.1 QA 스위트 — Part A(프로토콜) + Part B(실브라우저 발동).
+"""BXConsole v0.1.1 QA 스위트 — Part A(프로토콜) + Part B(실브라우저 발동).
 
 실행:  python3 qa/qa_v011.py        (C2 :7700, 대상 :8000 가동 중이어야 함)
 """

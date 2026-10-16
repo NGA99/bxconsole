@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BXShell 실습 대상 사이트 (:8000) — 저장형 싱크가 있는 가짜 관리자 페이지.
+"""BXConsole 실습 대상 사이트 (:8000) — 저장형 싱크가 있는 가짜 관리자 페이지.
 
 실행:  python3 lab/target.py
   홈+주입 폼 : http://127.0.0.1:8000/
@@ -59,5 +59,5 @@ class Target(http.server.BaseHTTPRequestHandler):
 class S(socketserver.ThreadingMixIn, http.server.HTTPServer): daemon_threads = True
 
 if __name__ == "__main__":
-    print("BXShell 실습 대상 :8000  | 주입 폼: / | 싱크: /admin")
+    print("BXConsole 실습 대상 :8000  | 주입 폼: / | 싱크: /admin")
     S(("127.0.0.1", 8000), Target).serve_forever()

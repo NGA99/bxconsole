@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BXShell v0.1.2 QA — Part A(프로토콜 15) + Part B(실브라우저 3) + Part C(이름변경·닫기 8).
+"""BXConsole v0.1.2 QA — Part A(프로토콜 15) + Part B(실브라우저 3) + Part C(이름변경·닫기 8).
 
 실행:  python3 qa/qa_v012.py        (C2 :7700, 대상 :8000 가동 중이어야 함)
 종료 시 QA가 생성한 세션은 자동 정리(close)한다.

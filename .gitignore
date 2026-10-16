@@ -6,6 +6,12 @@ sessions/
 c2/names.json
 c2/config.json
 
+# logs
+c2/c2.log
+lab/target.log
+*.log
+nohup.out
+
 # python
 __pycache__/
 *.pyc
