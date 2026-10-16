@@ -800,6 +800,10 @@ function renderConsole(entries){
       body='<span class="v-cmd">'+esc(e.text||"")+'</span>'+stBadge(e.state);
     } else if(e.type==="result"){
       body=e.isErr?'<span class="v-err">Uncaught '+esc(e.text||"")+'</span>':colorVal(e.text||"");
+    } else if(e.type==="autoart"){
+      body='<img src="/shot/'+esc(e.vid)+'" onclick="openLightbox(this.src)" '
+          +'style="max-height:90px;cursor:zoom-in;border:1px solid var(--border);border-radius:3px;vertical-align:top;margin-right:8px">'
+          +'<a href="/api/htmldump?id='+esc(e.vid)+'" target="_blank" style="color:var(--blue);font-size:10px">📄 HTML dump — new tab</a>';
     } else if(e.type==="pageinfo"){
       body=esc(e.text||"");
     } else {
@@ -1247,6 +1251,8 @@ function pollState(){
           var fs=f.fields.slice(0,6).map(function(x){ return x.name+(x.type&&x.type!=="text"?"["+x.type+"]":""); }).join(", ");
           prow.push({type:"pageinfo",text:"form "+f.method.toUpperCase()+" "+f.action+" → "+fs,src:"form",rawText:fs});
         });
+        // collected artifacts — auto surface (thumbnail + dump link)
+        if ((d.has_screenshot||[]).indexOf(active)>=0) prow.push({type:"autoart",vid:active,rawText:""});
         groups.push({t:fv.first||"", rows:prow});
       }
 

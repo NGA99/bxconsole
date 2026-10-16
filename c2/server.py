@@ -469,6 +469,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 _gif = base64.b64decode(
                     "R0lGODlhAQABAIAAAAAAAP///yH5BAAAAAAALAAAAAABAAEAAAIBRAA7")
                 self._send(200, "image/gif", _gif)
+        elif p.startswith("/shot/"):
+            vid = sanitize_vid(p.split("/")[2])
+            with LOCK:
+                data = SCREENSHOT.get(vid, {}).get("data", "")
+            body = b""
+            if data:
+                try: body = base64.b64decode(data)
+                except Exception: body = b""
+            if body:
+                self.send_response(200)
+                self.send_header("Content-Type", "image/jpeg")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers(); self.wfile.write(body)
+            else:
+                self._send(404, "text/plain", b"no screenshot")
         elif p == "/api/probes":
             with LOCK:
                 self._send(200, "application/json", json.dumps(list(PROBES), ensure_ascii=False).encode())

