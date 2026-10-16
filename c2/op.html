@@ -408,6 +408,10 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 /* ══════════════════════════════════════
    Proxy modal
 ══════════════════════════════════════ */
+#toast{position:fixed;bottom:18px;right:18px;z-index:300;background:#2b2b2b;color:#fff;
+  padding:7px 12px;border-radius:4px;font-size:11px;opacity:0;transition:opacity .25s;
+  pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#toast.show{opacity:1}
 #pxmodal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);
          z-index:100;align-items:center;justify-content:center}
 #pxmodal.open{display:flex}
@@ -744,6 +748,16 @@ bindDrag($("sbar"), ".stab", function(){
 
 
 /* ═══════════ Utils ═══════════ */
+/* Toast — lightweight feedback */
+var toastEl = document.createElement("div");
+toastEl.id = "toast"; document.body.appendChild(toastEl);
+var toastTimer = null;
+function showToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ toastEl.classList.remove("show"); }, 1400);
+}
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function nameOf(d,id){
   return (d&&(d.names||{})[id]) || (vcache[id]&&vcache[id].name) || id.slice(0,8);
@@ -1078,6 +1092,7 @@ function renderNet(){
       if (r0){
         copyText(prettyBody(r0.body||"", r0.ct) || "");
         var o=cpb.textContent; cpb.textContent="✔"; setTimeout(function(){ cpb.textContent=o; }, 900);
+        showToast("Copied to clipboard");
       }
       return;
     }
@@ -1720,6 +1735,7 @@ $("plpanel").addEventListener("click",function(e){
   var el=e.target.closest("[data-k]"); if (!el) return;
   var ks=el.dataset.k.split(":");
   copyText(plCode(+ks[0], +ks[1]));
+  showToast("Copied to clipboard");
   var btn=el.classList.contains("pcopy")?el:el.parentElement.querySelector(".pcopy");
   if (btn){ var o=btn.textContent; btn.textContent="✔"; setTimeout(function(){ btn.textContent=o; },900); }
 });
