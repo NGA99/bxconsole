@@ -31,8 +31,8 @@ vid = "qa_" + uuid.uuid4().hex[:6]
 
 st, b = req(C2 + "/api/state")
 check("A01 C2 /api/state 응답", st == 200)
-st, b = req(C2 + "/op")
-check("A02 /op 운영자 콘솔 서빙", st == 200 and b"tabs" in b)
+st, b = req(C2 + "/bxconsole")
+check("A02 /bxconsole 운영자 콘솔 서빙", st == 200 and b"tabs" in b)
 st, b = req(C2 + "/bx.js")
 check("A03 /bx.js 서빙 + C2주소 치환", st == 200 and b"127.0.0.1:7700" in b and b"__C2__" not in b)
 try:

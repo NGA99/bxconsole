@@ -4,7 +4,7 @@ blind XSS로 확보한 관리자 브라우저 세션에 **상주(beacon)** 해�
 앵커(self-iframe)로 내비게이션 이탈에도 세션을 유지하고, 명령 큐는 서버 보존이라 세션이 끊겨도 유실되지 않는다.
 
 ```
-[관리자 브라우저]                              [C2 :7700]                 [운영자 /op]
+[관리자 브라우저]                              [C2 :7700]                 [운영자 /bxconsole]
 저장된 싱크 렌더 → bx.js 실행 ── info/bead ──▶ /b/* 수집 ──▶ Console · Network · Sessions · Payloads
      ▲ EventSource(명령 푸시) ◀────────────── /sse  ◀── /api/send (명령 큐잉)
      └─ eval 실행 → 결과 sendBeacon ─────────▶ /b/result
@@ -25,7 +25,7 @@ python3 lab/target.py               # :8000
 
 # 4) 피해자 시뮬레이션 — 새 창에서 http://127.0.0.1:8000/admin 열람 (raw 렌더 → 발동)
 
-# 5a) 웹 운영자 — http://127.0.0.1:7700/op
+# 5a) 웹 운영자 — http://127.0.0.1:7700/bxconsole
 #   Console  : document.title · await bx.proxy('/profile') · bx.dom.text('h1')
 #              /screenshot (썸네일+확대) · /html (페이지 덤프) · /proxy <url>
 #   Network  : fetch/XHR/리소스/WS/SSE 캡처, 상태·메소드·바디 검색, HAR 내보내기
@@ -69,7 +69,7 @@ sessions/
 - **Purge**(hard) = 디렉터리 영구 삭제 + `.purged.json` 기록 + evidence 원장에 기록
 - `evidence/sessions-YYYYMMDD.jsonl`은 별도 append-only 원장 (beat 제외 전 비컨)
 
-## 운영자 콘솔 (/op)
+## 운영자 콘솔 (/bxconsole)
 
 - **상태 점**: 🟢 live(≤5s) → 🟡 stale(≤35s, 비컨 지연) → 🔴 red(>35s & SSE 없음 = 완전 끊김) / ⚪ closed
 - **탭 ✕** = 콘솔에서만 숨김(세션 생존), Sessions 패널 클릭으로 복원
@@ -94,7 +94,7 @@ sessions/
   WantedBy=multi-user.target
   ```
 - **운영 주의**:
-  - `/op`는 인증 없음(v0.4 예정) — 방화벽 제한 또는 역프록시 basic auth 필수
+  - `/bxconsole`는 인증 없음(v0.4 예정) — 방화벽 제한 또는 역프록시 basic auth 필수
   - https 페이지 대상이면 C2도 TLS 권장(mixed content로 스크립트 로드 차단됨)
   - 공개(https) 페이지가 localhost/사설 IP로 요청하면 Chrome Local Network Access 권한 프롬프트 발생 — nav 채널 또는 공개 주소 서빙으로 회피
   - `sessions/`·`evidence/`는 민감 데이터 — 리포지토리에 커밋되지 않음(.gitignore), 서버 간 이전은 디렉터리 복사
