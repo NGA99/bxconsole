@@ -652,7 +652,9 @@ var seenVids = new Set();
 var suppressedVids = new Set();
 var hiddenTabs = new Set();   // sessions hidden via tab ✕ — alive on server, hidden in UI only
 var sbarOrder = [];           // victim tab drag order (localStorage persisted)
-var barVids = new Set();      // sessions currently shown in the session bar — opened via Sessions panel or new victims
+var barVids = new Set();      // sessions currently shown in the session bar — persisted in localStorage
+try { JSON.parse(localStorage.bx_bar_vids || "[]").forEach(function(v){ barVids.add(v); }); } catch(e) {}
+function saveBarVids(){ try { localStorage.bx_bar_vids = JSON.stringify(Array.from(barVids)); } catch(e) {} }
 var sbarEdit = false;         // inline rename in progress — suspend tab re-render
 try { sbarOrder = JSON.parse(localStorage.bx_sbar_order || "[]"); } catch(e) { sbarOrder = []; }
 var stateTrash = {};          // /api/state trash — restorable
@@ -941,7 +943,7 @@ function renderSessions(){
 }
 
 function openSession(id){
-  barVids.add(id);                    // open the tab into the session bar
+  barVids.add(id); saveBarVids();     // open the tab into the session bar
   if (vcache[id]) vcache[id].isNew=false;
   hiddenTabs.delete(id);              // bring hidden tab back
   suppressedVids.delete(id);          // allow re-listing after restore
@@ -1112,7 +1114,7 @@ function pollState(){
           if (!isFirstLoad){
             vcache[id] = vcache[id] || {};
             vcache[id].isNew = true;        // NEW chip — cleared when the tab is opened/selected
-            barVids.add(id);
+            barVids.add(id); saveBarVids();
             if (!active){                   // idle → auto-focus the incoming session
               active = id; curPanel = "c";
               document.querySelectorAll(".ptab").forEach(function(x){ x.classList.toggle("on",x.dataset.p==="c"); });
@@ -1134,6 +1136,11 @@ function pollState(){
       hbdg.textContent = totalSessions || "";
       hbdg.className = "bdg" + (totalSessions ? " show" : "");
       if (curPanel==="h") renderSessions();
+
+      // prune barVids — sessions removed server-side (purged/deleted) drop off the bar
+      barVids.forEach(function(bid){
+        if (!vics[bid] && (d["closed"]||[]).indexOf(bid)<0){ barVids.delete(bid); saveBarVids(); }
+      });
 
       // session bar — only sessions opened into the bar (Sessions panel / new victims)
       var barList=Object.keys(vics).filter(function(id){ return barVids.has(id) && !hiddenTabs.has(id); }).sort(function(a,b){
@@ -1184,7 +1191,7 @@ function pollState(){
             // click the session in the Sessions panel to bring the tab back
             var vid=ev.target.dataset.x;
             hiddenTabs.add(vid);
-            barVids.delete(vid);
+            barVids.delete(vid); saveBarVids();
             if (active===vid) active=null;
             pollState();
             return;
