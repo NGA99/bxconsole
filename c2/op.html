@@ -638,6 +638,7 @@ var active   = null;
 var hist     = [], hi = -1;
 var netRows  = [], netExp = new Set();
 var netViewRows = [];         // currently displayed rows (filtered, newest first)
+var lastNetCount = 0;         // badge tracking — capture count of the active session
 var netFilt  = "", netMeth = "ALL";
 var netStat  = "ALL";      // status filter: ALL / 2 / 3 / 4
 var netPaused = false;     // capture pause
@@ -1166,6 +1167,18 @@ function pollState(){
       });
       // network tab follows the session — switch detected → immediate reload
       if (curPanel==="n" && active && active!==lastNetVid) loadNet();
+
+      // network tab badge — capture count updates even outside the panel
+      var nc = (d.net_count||{})[active] || 0;
+      if (curPanel !== "n"){
+        if (nc > lastNetCount && nc > 0){
+          nbdg.classList.add("flash");
+          setTimeout(function(){ nbdg.classList.remove("flash"); }, 1200);
+        }
+        nbdg.textContent = nc || "";
+        nbdg.className = "bdg" + (nc ? " show" : "");
+      }
+      lastNetCount = nc;
 
       // Sessions badge: total session count
       var totalSessions = Object.keys(vcache).length;
