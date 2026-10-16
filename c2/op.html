@@ -56,7 +56,7 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 .stab .dot.stale{background:#fbbc04}.stab .dot.red{background:#d93025}.stab .dot.dead{background:#bbb}
 .stab .sname{overflow:hidden;text-overflow:ellipsis;max-width:90px}
 .stab .sage{color:var(--faint);font-size:10px}
-.stab .se,.stab .sx{font-size:10px;color:var(--faint);padding:1px 3px;border-radius:2px;flex-shrink:0;z-index:1}
+.stab .se,.stab .sx{font-size:12px;color:var(--faint);padding:2px 4px;border-radius:2px;flex-shrink:0;z-index:1}
 .stab .se:hover{background:#fbbc04;color:#000}
 .stab .sx:hover{background:var(--red2);color:#fff}
 #sbar-empty{padding:0 14px;color:var(--faint);font-size:11px;align-self:center;flex-shrink:0}
@@ -305,6 +305,13 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 /* Flash Sessions badge when a new victim connects */
 @keyframes bdgFlash{0%,100%{opacity:1}50%{opacity:.3}}
 .bdg.flash{animation:bdgFlash .5s ease 4}
+
+/* ══════════════════════════════════════
+   Session tab tooltip (1.5s hover)
+══════════════════════════════════════ */
+#tabtip{position:fixed;z-index:200;display:none;background:#2b2b2b;color:#fff;
+  padding:6px 10px;border-radius:4px;font-size:11px;line-height:1.5;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;max-width:380px;word-break:break-all}
 
 /* ══════════════════════════════════════
    Autocomplete dropdown + ghost text
@@ -723,6 +730,41 @@ bindDrag($("sbar"), ".stab", function(){
   localStorage.bx_sbar_order = JSON.stringify(sbarOrder);
 });
 
+// session tab hover tooltip — 1.5초 이상 호버 시 잘린 이름 전체 표시
+var tabtipEl = document.createElement("div");
+tabtipEl.id = "tabtip"; document.body.appendChild(tabtipEl);
+var tipTimer = null, tipVid = null;
+function hideTabTip(){ clearTimeout(tipTimer); tipVid = null; tabtipEl.style.display = "none"; }
+function showTabTip(t){
+  var vid = t.dataset.id; if (!vid) return;
+  var v = vcache[vid] || {};
+  var nm = v.name || vid;
+  var age = secs(v.last || "");
+  tabtipEl.innerHTML = '<div style="font-weight:600">'+esc(nm)+'</div>'
+    +'<div style="opacity:.55;font-size:9px;margin-top:2px">'+esc(vid)
+    +' · last beacon '+(isFinite(age)?age+"s":"-")+' ago</div>'
+    +'<div style="opacity:.55;font-size:9px;margin-top:2px">✎ rename · ✕ hide tab</div>';
+  tabtipEl.style.display = "block";
+  var r = t.getBoundingClientRect();
+  tabtipEl.style.left = Math.max(8, Math.min(r.left, window.innerWidth-390)) + "px";
+  tabtipEl.style.top  = (r.bottom + 6) + "px";
+}
+sbar.addEventListener("mouseover", function(e){
+  var t = e.target.closest(".stab");
+  if (!t){ hideTabTip(); return; }
+  if (tipVid === t.dataset.id) return;     // 같은 탭 내부 이동 — 타이머 유지
+  tipVid = t.dataset.id;
+  clearTimeout(tipTimer);
+  tabtipTimer = setTimeout(function(){ showTabTip(t); }, 1500);
+});
+sbar.addEventListener("mouseout", function(e){
+  var from = e.target.closest(".stab");
+  var to = e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest(".stab") : null;
+  if (from && to === from) return;         // 같은 탭 내부 이동 — 유지
+  hideTabTip();
+});
+sbar.addEventListener("mouseleave", hideTabTip);
+
 /* ═══════════ Utils ═══════════ */
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function nameOf(d,id){
@@ -1139,17 +1181,17 @@ function pollState(){
             var vn=vcache[id];
             return '<div class="stab'+(id===active?" on":"")+'" data-id="'+id+'" draggable="true">'
               +'<span class="dot dead"></span>'
-              +'<span class="sname" title="'+esc(id)+'">'+esc(vn.name||id.slice(0,8))+'</span>'
+              +'<span class="sname">'+esc(vn.name||id.slice(0,8))+'</span>'
               +'<span class="sage">Closed</span>'
               +'</div>';
           }
           var v=vics[id], sseCnt=sse[id]||0;
-          var on=sseCnt>0||secs(v.last)<=35;
           var dc="dot "+sessDot(false, v.last, sseCnt);
+          var age=secs(v.last), agStr=age<=99?age+"s":">99s";
           return '<div class="stab'+(id===active?" on":"")+'" data-id="'+id+'" draggable="true">'
-            +'<span class="'+dc+'" title="last beacon '+secs(v.last)+'s ago"></span>'
-            +'<span class="sname" title="'+esc(id)+'">'+esc(nameOf(d,id))+'</span>'
-            +'<span class="sage">'+(on?secs(v.last)+"s":"×")+'</span>'
+            +'<span class="'+dc+'"></span>'
+            +'<span class="sname">'+esc(nameOf(d,id))+'</span>'
+            +'<span class="sage">'+agStr+'</span>'
             +'<span class="se" data-e="'+id+'">✎</span>'
             +'<span class="sx" data-x="'+id+'">✕</span>'
             +'</div>';
