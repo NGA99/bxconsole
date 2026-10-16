@@ -93,3 +93,4 @@ sessions/
 ## 주의
 
 **승인된 대상에만 사용.** 수집 데이터(쿠키·localStorage·스크린샷)는 민감할 수 있으므로 evidence 보호 필수. 세션 삭제는 soft(휴지통), 파기는 영구 삭제다.
+# bxconsole
