@@ -93,7 +93,7 @@ Console에서 `await bx.proxy('/url')` 직접 입력.
 ├ 패널 탭 (panel tabs) ── Console · Network · Sessions · Payloads · Probe · Settings ← 드래그 순서 조정 가능
 │   ├ Console 패널 — 콘솔 스트림 + 입력창
 │   ├ Network 패널 — 네트워크 캡처 테이블
-│   ├ Sessions 패널 — 세션 목록 + TRASH
+│   ├ Sessions 패널 — 세션 목록 + TRASH (⚠ "세션 패널" 금지 — 세션 탭과 혼동)
 │   ├ Payloads 패널 — 페이로드 생성기
 │   ├ Probe 패널 — probe hit 실시간 목록
 │   └ Settings 패널 — 자동수집 플래그
@@ -107,6 +107,9 @@ Console에서 `await bx.proxy('/url')` 직접 입력.
 | **세션 탭** (session tab) | 세션바의 피해자별 탭. **"누구 데이터를 볼지"** 선택. 클릭 = active 전환 → 모든 패널이 그 세션 데이터 표시 |
 | **패널 탭** (panel tab) | 기능 선택 탭. **"무엇을 볼지"** 선택. 클릭 = 같은 active, 다른 기능 뷰 |
 | **패널** (panel) | 탭 아래의 내용 영역. 피해자 전용 패널은 없음 — 6개 패널을 모든 세션이 공유 |
+
+⚠️ **"세션 탭" vs "Sessions 패널"**: 세션 탭은 피해자 하나(상단바), Sessions 패널은 전체 세션 목록+휴지통(패널).
+"세션 패널"이라는 말은 쓰지 않는다 — 세션 탭과 혼동된다.
 
 ⚠️ **"피해자가 들어오면 탭이 열린다"의 정확한 의미:**
 1. 세션바에 **세션 탭이 추가**됨 (NEW 마크)
