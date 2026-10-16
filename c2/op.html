@@ -56,7 +56,11 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 .stab .dot.stale{background:#fbbc04}.stab .dot.red{background:#d93025}.stab .dot.dead{background:#bbb}
 .stab .sname{overflow:hidden;text-overflow:ellipsis;max-width:90px}
 .stab .sage{color:var(--faint);font-size:10px}
-.stab .se,.stab .sx{font-size:12px;color:var(--faint);padding:2px 4px;border-radius:2px;flex-shrink:0;z-index:1}
+.stab .se,.stab .sx{
+  font-size:12px;color:var(--faint);padding:1px 4px;border-radius:2px;flex-shrink:0;z-index:1;
+  border:1px solid var(--border2);background:var(--bg);line-height:1.2;
+}
+.stab:hover .se,.stab:hover .sx{color:var(--dim);border-color:var(--border)}
 .stab.editing{min-width:0}
 .stab.editing .sname{max-width:none}
 .stab .sedit{
@@ -64,8 +68,8 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
   color:var(--text);font-family:inherit;font-size:11px;padding:1px 4px;outline:none;
 }
 .stab .sedit:focus{outline:1px solid var(--blue);outline-offset:-1px}
-.stab .se:hover{background:#fbbc04;color:#000}
-.stab .sx:hover{background:var(--red2);color:#fff}
+.stab .se:hover{background:#fbbc04;border-color:#fbbc04;color:#000}
+.stab .sx:hover{background:var(--red2);border-color:var(--red2);color:#fff}
 #sbar-empty{padding:0 14px;color:var(--faint);font-size:11px;align-self:center;flex-shrink:0}
 
 /* ══════════════════════════════════════
