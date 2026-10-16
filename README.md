@@ -3,6 +3,8 @@
 blind XSS로 확보한 관리자 브라우저 세션에 **상주(beacon)** 해서 DevTools 콘솔처럼 조작하는 도구.
 앵커(self-iframe)로 내비게이션 이탈에도 세션을 유지하고, 명령 큐는 서버 보존이라 세션이 끊겨도 유실되지 않는다.
 
+> **용어 정의**: [docs/TERMS.md](docs/TERMS.md) — 컴포넌트·UI·기능 명칭은 이 문서를 기준으로 통일.
+
 ```
 [관리자 브라우저]                              [C2 :7700]                 [운영자 /bxconsole]
 저장된 싱크 렌더 → bx.js 실행 ── info/bead ──▶ /b/* 수집 ──▶ Console · Network · Sessions · Payloads
@@ -27,8 +29,9 @@ python3 lab/target.py               # :8000
 
 # 5a) 웹 운영자 — http://127.0.0.1:7700/bxconsole
 #   Console  : document.title · await bx.proxy('/profile') · bx.dom.text('h1')
-#              /screenshot (썸네일+확대) · /html (페이지 덤프) · /proxy <url>
+#              /screenshot (썸네일+확대) · /html (페이지 덤프) — proxy는 툴바 버튼/모달
 #   Network  : fetch/XHR/리소스/WS/SSE 캡처, 상태·메소드·바디 검색, HAR 내보내기
+#   Payloads : 주입 페이로드 20종 + Probe(one-shot) + Console trigger
 #   Sessions : 상태 점(🟢🟡🔴), 휴지통(Delete→Restore/Purge)
 #   Payloads : 주입용 XSS 페이로드 생성기 (C2 주소 자동 치환·복사)
 
