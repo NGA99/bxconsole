@@ -265,6 +265,7 @@
 
   // ── v0.3: 리소스 로드 관찰 (img/script/css 메타데이터 — fetch/XHR initiator 제외) ──
   try {
+    var _refetched = {}, _refetchN = 0;
     var _po = new PerformanceObserver(function (list) {
       (list.getEntries() || []).forEach(function (e) {
         if (!e.name || e.name.indexOf(C2) !== -1) return;
@@ -274,6 +275,16 @@
           method: (e.initiatorType || "GET").toUpperCase(), url: e.name,
           status: 0, ro: 1, size: e.transferSize || 0, ms: Math.round(e.duration) || 0
         });
+        // 자동 바디 캡처 — 동일 출처 리소스를 force-cache로 재요청 (fetch 훅이 응답 캡처)
+        try {
+          if (!_refetched[e.name] && _refetchN < 20 && !(e.transferSize > 300000)) {
+            var u2 = new URL(e.name, location.href);
+            if (u2.origin === location.origin) {
+              _refetched[e.name] = 1; _refetchN++;
+              fetch(u2.href, { cache: "force-cache" }).catch(function () {});
+            }
+          }
+        } catch (e2) {}
       });
     });
     _po.observe({ type: "resource", buffered: true });
